@@ -18,9 +18,11 @@ func main() {
 		"exit", "echo", "type",
 	}
 
+	reader := bufio.NewReader(os.Stdin)
+
 	for {
 		fmt.Print("$ ")
-		command, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		command, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error reading input: ", err)
 			os.Exit(1)
@@ -28,11 +30,9 @@ func main() {
 		command = strings.TrimSpace(command)
 		if command == "exit" {
 			break
-		}
-		if strings.HasPrefix(command, "echo ") {
+		} else if strings.HasPrefix(command, "echo ") {
 			fmt.Println(command[5:])
-		}
-		if strings.HasPrefix(command, "type ") {
+		} else if strings.HasPrefix(command, "type ") {
 			types := command[5:]
 			if slices.Contains(builtIns, types) {
 				fmt.Println(types + " is a shell builtin")
