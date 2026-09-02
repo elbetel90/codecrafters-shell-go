@@ -20,7 +20,6 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Error reading input: ", err)
 			os.Exit(1)
 		}
-		fmt.Println("command == exit", command == "exit")
 		command = strings.TrimSpace(command)
 		if command == "exit" {
 			break
