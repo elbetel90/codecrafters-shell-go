@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"slices"
 	"strings"
 )
@@ -20,23 +21,30 @@ func main() {
 
 	for {
 		fmt.Print("$ ")
-		command, err := reader.ReadString('\n')
+		input, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error reading input: ", err)
 			os.Exit(1)
 		}
-		command = strings.TrimSpace(command)
-		args := strings.Split(command, " ")
-		if args[0] == "type" && slices.Contains(built_ins, args[1]) {
-			fmt.Println(args[1] + " is a shell builtin")
-		} else if args[0] == "type" {
-			fmt.Println(args[1] + ": not found")
-		} else if command == "exit" {
+		input = strings.TrimSpace(input)
+		args := strings.Split(input, " ")
+		command, args := args[0], args[1:]
+		if command == "type" {
+			if slices.Contains(built_ins, args[0]) {
+				fmt.Println(args[0] + " is a shell builtin")
+			} else if path, err := exec.LookPath(args[0]); err == nil {
+				fmt.Println(args[0] + " is " + path)
+			} else if args[0] == "type" {
+				fmt.Println(args[0] + ": not found")
+			} else {
+				fmt.Println(args[0] + ": not found")
+			}
+		} else if input == "exit" {
 			break
-		} else if strings.HasPrefix(command, "echo ") {
-			fmt.Println(command[5:])
+		} else if strings.HasPrefix(input, "echo ") {
+			fmt.Println(input[5:])
 		} else {
-			fmt.Println(command + ": command not found")
+			fmt.Println(input + ": command not found")
 		}
 
 	}
