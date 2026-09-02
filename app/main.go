@@ -28,7 +28,7 @@ func main() {
 		command = strings.TrimSpace(command)
 		args := strings.Split(command, " ")
 		if args[0] == "type" && slices.Contains(built_ins, args[1]) {
-			fmt.Println(args[1] + " is a shell command")
+			fmt.Println(args[1] + " is a shell builtin")
 		} else if args[0] == "type" {
 			fmt.Println(args[1] + ": command not found")
 		} else if command == "exit" {
