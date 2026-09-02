@@ -12,12 +12,15 @@ import (
 // Ensures gofmt doesn't remove the "fmt" import in stage 1 (feel free to remove this!)
 var _ = fmt.Print
 
+var built_ins = []string{
+	"exit",
+	"echo",
+	"type",
+}
+
 func main() {
 	// TODO: Uncomment the code below to pass the first stage
 	reader := bufio.NewReader(os.Stdin)
-	var built_ins = []string{
-		"exit", "echo", "type",
-	}
 
 	for {
 		fmt.Print("$ ")
@@ -39,8 +42,8 @@ func main() {
 			} else {
 				fmt.Println(args[0] + ": not found")
 			}
-		} else if _, err := exec.LookPath(args[0]); err == nil {
-			cmd := exec.Command(args[0], args[1:]...)
+		} else if _, err := exec.LookPath(command); err == nil {
+			cmd := exec.Command(command, args...)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cmd.Run()
