@@ -13,12 +13,10 @@ var _ = fmt.Print
 
 func main() {
 	// TODO: Uncomment the code below to pass the first stage
-
-	var builtIns = []string{
+	reader := bufio.NewReader(os.Stdin)
+	var built_ins = []string{
 		"exit", "echo", "type",
 	}
-
-	reader := bufio.NewReader(os.Stdin)
 
 	for {
 		fmt.Print("$ ")
@@ -28,18 +26,15 @@ func main() {
 			os.Exit(1)
 		}
 		command = strings.TrimSpace(command)
-		if command == "exit" {
+		args := strings.Split(command, " ")
+		if args[0] == "type" && slices.Contains(built_ins, args[1]) {
+			fmt.Println(args[1] + " is a shell command")
+		} else if args[0] == "type" {
+			fmt.Println(args[1] + ": command not found")
+		} else if command == "exit" {
 			break
 		} else if strings.HasPrefix(command, "echo ") {
 			fmt.Println(command[5:])
-		} else if strings.HasPrefix(command, "type ") {
-			types := command[5:]
-			if slices.Contains(builtIns, types) {
-				fmt.Println(types + " is a shell builtin")
-			} else {
-				fmt.Println(types + ": not found")
-			}
-
 		} else {
 			fmt.Println(command + ": command not found")
 		}
