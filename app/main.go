@@ -30,7 +30,7 @@ func main() {
 		if args[0] == "type" && slices.Contains(built_ins, args[1]) {
 			fmt.Println(args[1] + " is a shell builtin")
 		} else if args[0] == "type" {
-			fmt.Println(args[1] + ": command not found")
+			fmt.Println(args[1] + ": not found")
 		} else if command == "exit" {
 			break
 		} else if strings.HasPrefix(command, "echo ") {
