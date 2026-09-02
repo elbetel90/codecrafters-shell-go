@@ -39,16 +39,17 @@ func main() {
 			} else {
 				fmt.Println(args[0] + ": not found")
 			}
+		} else if _, err := exec.LookPath(args[0]); err == nil {
+			cmd := exec.Command(args[0], args[1:]...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Run()
 		} else if input == "exit" {
 			break
 		} else if strings.HasPrefix(input, "echo ") {
 			fmt.Println(input[5:])
 		} else {
 			fmt.Println(input + ": command not found")
-			cmd := exec.Command(args[0], args[1:]...)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmd.Run()
 		}
 
 	}
