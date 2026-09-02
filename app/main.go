@@ -32,8 +32,11 @@ func main() {
 		if command == "type" {
 			if slices.Contains(built_ins, args[0]) {
 				fmt.Println(args[0] + " is a shell builtin")
-			} else if path, err := exec.LookPath(args[0]); err == nil {
-				fmt.Println(args[0] + " is " + path)
+			} else if _, err := exec.LookPath(args[0]); err == nil {
+				cmd := exec.Command(args[0], args[1:]...)
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				cmd.Run()
 			} else if args[0] == "type" {
 				fmt.Println(args[0] + ": not found")
 			} else {
