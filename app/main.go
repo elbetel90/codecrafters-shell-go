@@ -16,6 +16,7 @@ var built_ins = []string{
 	"exit",
 	"echo",
 	"type",
+	"pwd",
 }
 
 func main() {
