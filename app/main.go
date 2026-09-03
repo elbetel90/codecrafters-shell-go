@@ -23,8 +23,6 @@ var built_ins = []string{
 
 func main() {
 	// TODO: Uncomment the code below to pass the first stage
-	fmt.Println(os.Getenv("HOME"))
-
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
