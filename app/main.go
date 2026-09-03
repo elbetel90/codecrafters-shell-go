@@ -59,17 +59,14 @@ func main() {
 			}
 			fmt.Println(dir)
 		} else if command == "cd" {
-			if args[0] == "~" {
+			arg := args[0]
+			if arg == "~" {
 				home_dir := os.Getenv("HOME")
-				err := os.Chdir(home_dir)
-				if err != nil {
-					fmt.Printf("cd: %s: No such file or directory\n", args[0])
-				}
-			} else {
-				err := os.Chdir(args[0])
-				if err != nil {
-					fmt.Printf("cd: %s: No such file or directory\n", args[0])
-				}
+				arg = home_dir
+			}
+			err := os.Chdir(arg)
+			if err != nil {
+				fmt.Printf("cd: %s: No such file or directory\n", args[0])
 			}
 		} else if input == "exit" {
 			break
