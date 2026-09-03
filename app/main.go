@@ -61,7 +61,7 @@ func main() {
 			if err != nil {
 				fmt.Printf("cd: %s: No such file or directory\n", args[0])
 				// fmt.Fprintln(os.Stderr, "cd: ", err)
-				os.Exit(1)
+				// os.Exit(1)
 			}
 		} else if input == "exit" {
 			break
