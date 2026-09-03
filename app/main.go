@@ -17,6 +17,7 @@ var built_ins = []string{
 	"echo",
 	"type",
 	"pwd",
+	"cd",
 }
 
 func main() {
@@ -51,10 +52,16 @@ func main() {
 		} else if command == "pwd" {
 			dir, err := os.Getwd()
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error getting current directory", err)
+				fmt.Fprintln(os.Stderr, "pwd error", err)
 				os.Exit(1)
 			}
 			fmt.Println(dir)
+		} else if command == "cd" {
+			err := os.Chdir(args[0])
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "cd error", err)
+				os.Exit(1)
+			}
 		} else if input == "exit" {
 			break
 		} else if strings.HasPrefix(input, "echo ") {
