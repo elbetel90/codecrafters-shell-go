@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -61,15 +60,13 @@ func main() {
 			fmt.Println(dir)
 		} else if command == "cd" {
 			arg := args[0]
-			if arg == "~" || strings.HasPrefix(arg, "~") {
+			if arg == "~" {
 				home_dir, err := os.UserHomeDir()
-				if err == nil {
-					if arg == "~" {
-						arg = home_dir
-					} else {
-						arg = filepath.Join(home_dir, arg[2:])
-					}
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Invalid cd ~")
+					return
 				}
+				arg = home_dir
 			}
 
 			err := os.Chdir(arg)
