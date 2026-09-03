@@ -47,6 +47,13 @@ func main() {
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cmd.Run()
+		} else if command == "pwd" {
+			dir, err := os.Getwd()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error getting current directory", err)
+				os.Exit(1)
+			}
+			fmt.Println(dir)
 		} else if input == "exit" {
 			break
 		} else if strings.HasPrefix(input, "echo ") {
