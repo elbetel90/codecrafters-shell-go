@@ -61,13 +61,14 @@ func main() {
 			fmt.Println(dir)
 		} else if command == "cd" {
 			arg := args[0]
-			if arg == "~" || strings.HasPrefix(arg, "~") {
-				home_dir, err := os.UserHomeDir()
+
+			if arg == "~" || strings.HasPrefix(arg, "~/") {
+				homeDir, err := os.UserHomeDir()
 				if err == nil {
 					if arg == "~" {
-						arg = home_dir
+						arg = homeDir
 					} else {
-						arg = filepath.Join(home_dir, arg[2:])
+						arg = filepath.Join(homeDir, arg[2:])
 					}
 				}
 			}
