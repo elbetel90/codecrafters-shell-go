@@ -22,6 +22,8 @@ var built_ins = []string{
 
 func main() {
 	// TODO: Uncomment the code below to pass the first stage
+	fmt.Println(os.Getenv("HOME"))
+
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -57,11 +59,17 @@ func main() {
 			}
 			fmt.Println(dir)
 		} else if command == "cd" {
-			err := os.Chdir(args[0])
-			if err != nil {
-				fmt.Printf("cd: %s: No such file or directory\n", args[0])
-				// fmt.Fprintln(os.Stderr, "cd: ", err)
-				// os.Exit(1)
+			if args[0] == "~" {
+				home_dir := os.Getenv("HOME")
+				err := os.Chdir(home_dir)
+				if err != nil {
+					fmt.Printf("cd: %s: No such file or directory\n", args[0])
+				}
+			} else {
+				err := os.Chdir(args[0])
+				if err != nil {
+					fmt.Printf("cd: %s: No such file or directory\n", args[0])
+				}
 			}
 		} else if input == "exit" {
 			break
