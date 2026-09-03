@@ -59,17 +59,9 @@ func main() {
 			}
 			fmt.Println(dir)
 		} else if command == "cd" {
-			arg := args[0]
-			if arg == "~" {
-				home_dir, err := os.UserHomeDir()
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "Invalid cd ~")
-					return
-				}
-				arg = home_dir
-			}
-
-			err := os.Chdir(arg)
+			path := args[0]
+			path = strings.Replace(path, "~", os.Getenv("HOME"), 1)
+			err := os.Chdir(path)
 			if err != nil {
 				fmt.Printf("cd: %s: No such file or directory\n", args[0])
 			}
