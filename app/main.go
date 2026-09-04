@@ -39,6 +39,7 @@ func (s stack) Top() rune {
 
 func parseCommand(input string) (cmd string, args []string) {
 	var tokens []string
+	hasToken := false
 	var sb strings.Builder
 
 	st := stack{0}
@@ -50,11 +51,16 @@ func parseCommand(input string) (cmd string, args []string) {
 			switch ch {
 			case '\'':
 				st.Push('\'')
+				hasToken = true
 			case ' ', '\t':
-				tokens = append(tokens, sb.String())
-				sb.Reset()
+				if hasToken {
+					tokens = append(tokens, sb.String())
+					sb.Reset()
+					hasToken = false
+				}
 			default:
 				sb.WriteRune(ch)
+				hasToken = true
 			}
 		case '\'':
 			if ch == '\'' {
@@ -68,6 +74,10 @@ func parseCommand(input string) (cmd string, args []string) {
 
 	if st.Top() != 0 {
 		// return "", nil, fmt.Errorf("syntax error: unclosed single quote")
+	}
+
+	if hasToken {
+		tokens = append(tokens, sb.String())
 	}
 
 	if len(tokens) == 0 {
