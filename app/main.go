@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,6 +20,7 @@ var built_ins = []string{
 	"type",
 	"pwd",
 	"cd",
+	"cat",
 }
 
 func handlePwd() {
@@ -60,6 +62,44 @@ func handleType(args []string) {
 	}
 }
 
+func handleSingleQuote(arg string) (string, error) {
+	var sb strings.Builder
+	inSingleQoute := false
+
+	for i := 0; i < len(arg); i++ {
+		switch arg[i] {
+		case '\'':
+			inSingleQoute = !inSingleQoute
+		case ' ', '\t':
+			if inSingleQoute {
+				sb.WriteByte(arg[i])
+			}
+		default:
+			sb.WriteByte(arg[i])
+		}
+	}
+
+	if inSingleQoute {
+		return "", errors.New("syntax error: unclosed single quote")
+	}
+
+	return sb.String(), nil
+}
+
+func handleCat(args []string) {
+	var newArgs []string
+	for _, arg := range args {
+		content, err := handleSingleQuote(arg)
+		if err == nil {
+			newArgs = append(newArgs, content)
+		}
+	}
+	cmd := exec.Command("cat", newArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+}
+
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -78,13 +118,23 @@ func main() {
 		case "exit":
 			os.Exit(0)
 		case "echo":
-			fmt.Println(input[5:])
+			if strings.HasPrefix(args[0], "'") {
+				content, err := handleSingleQuote(args[0])
+				if err == nil {
+					fmt.Println("content length", len(content))
+					fmt.Println(content)
+				}
+			} else {
+				fmt.Println(input[5:])
+			}
 		case "pwd":
 			handlePwd()
 		case "cd":
 			handleCd(args)
 		case "type":
 			handleType(args)
+		case "cat":
+			handleCat(args)
 
 		default:
 			if _, err := exec.LookPath(command); err == nil {
