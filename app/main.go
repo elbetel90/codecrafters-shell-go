@@ -160,7 +160,6 @@ func main() {
 		}
 
 		command, args := parseCommand(input)
-		fmt.Println(command, args)
 
 		switch command {
 		case "exit":
