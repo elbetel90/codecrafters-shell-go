@@ -19,7 +19,6 @@ var built_ins = []string{
 	"type",
 	"pwd",
 	"cd",
-	"cat",
 }
 
 type stack []rune
