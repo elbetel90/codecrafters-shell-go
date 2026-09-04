@@ -52,6 +52,9 @@ func parseCommand(input string) (cmd string, args []string) {
 			case '\'':
 				st.Push('\'')
 				hasToken = true
+			case '"':
+				st.Push('"')
+				hasToken = true
 			case ' ', '\t':
 				if hasToken {
 					tokens = append(tokens, sb.String())
@@ -64,6 +67,12 @@ func parseCommand(input string) (cmd string, args []string) {
 			}
 		case '\'':
 			if ch == '\'' {
+				st.Pop()
+			} else {
+				sb.WriteRune(ch)
+			}
+		case '"':
+			if ch == '"' {
 				st.Pop()
 			} else {
 				sb.WriteRune(ch)
