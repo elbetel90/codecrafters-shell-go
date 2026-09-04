@@ -40,7 +40,6 @@ func (s stack) Top() rune {
 func parseCommand(input string) (cmd string, args []string) {
 	var tokens []string
 	hasToken := false
-	escapeNext := false
 	var sb strings.Builder
 
 	st := stack{0}
@@ -65,36 +64,27 @@ func parseCommand(input string) (cmd string, args []string) {
 			case '\\':
 				st.Push('\\')
 				hasToken = true
-				escapeNext = true
+				continue
 			default:
 				sb.WriteRune(ch)
 				hasToken = true
 			}
 		case '\'':
-			if escapeNext {
-				continue
-			}
 			if ch == '\'' {
 				st.Pop()
 			} else {
 				sb.WriteRune(ch)
 			}
 		case '"':
-			if escapeNext {
-				continue
-			}
 			if ch == '"' {
 				st.Pop()
 			} else {
 				sb.WriteRune(ch)
 			}
 		case '\\':
-			if ch == '\\' {
-				escapeNext = false
-				// st.Pop()
-			} else {
-				sb.WriteRune(ch)
-			}
+			sb.WriteRune(ch)
+			st.Pop()
+			hasToken = true
 		}
 
 	}
@@ -170,6 +160,7 @@ func main() {
 		}
 
 		command, args := parseCommand(input)
+		fmt.Println(command, args)
 
 		switch command {
 		case "exit":
