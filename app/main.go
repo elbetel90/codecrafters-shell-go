@@ -139,6 +139,11 @@ func main() {
 			os.Exit(1)
 		}
 
+		input = strings.TrimRight(input, "\r\n")
+		if len(input) == 0 {
+			continue
+		}
+
 		command, args := parseCommand(input)
 
 		switch command {
