@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -21,6 +20,73 @@ var built_ins = []string{
 	"pwd",
 	"cd",
 	"cat",
+}
+
+type stack []rune
+
+func (s *stack) Push(r rune) {
+	*s = append(*s, r)
+}
+
+func (s *stack) Pop() rune {
+	top := (*s)[len(*s)-1]
+	*s = (*s)[:len(*s)-1]
+	return top
+}
+
+func (s stack) Top() rune {
+	return s[len(s)-1]
+}
+
+func parseCommand(input string) (cmd string, args []string) {
+	var tokens []string
+	hasToken := false
+	var sb strings.Builder
+
+	st := stack{0}
+
+	for _, ch := range input {
+		current_mode := st.Top()
+
+		switch current_mode {
+		case 0:
+			switch ch {
+			case '\'':
+				st.Push('\'')
+				hasToken = true
+			case ' ', '\t':
+				if hasToken {
+					tokens = append(tokens, sb.String())
+					sb.Reset()
+					hasToken = false
+				}
+			default:
+				sb.WriteRune(ch)
+				hasToken = true
+			}
+		case '\'':
+			if ch == '\'' {
+				st.Pop()
+			} else {
+				sb.WriteRune(ch)
+			}
+		}
+
+	}
+
+	if st.Top() != 0 {
+		// return "", nil, fmt.Errorf("syntax error: unclosed single quote")
+	}
+
+	if hasToken {
+		tokens = append(tokens, sb.String())
+	}
+
+	if len(tokens) == 0 {
+		return "", nil
+	}
+
+	return tokens[0], tokens[1:]
 }
 
 func handlePwd() {
@@ -62,44 +128,6 @@ func handleType(args []string) {
 	}
 }
 
-func handleSingleQuote(arg string) (string, error) {
-	var sb strings.Builder
-	inSingleQoute := false
-
-	for i := 0; i < len(arg); i++ {
-		switch arg[i] {
-		case '\'':
-			inSingleQoute = !inSingleQoute
-		case ' ', '\t':
-			if inSingleQoute {
-				sb.WriteByte(arg[i])
-			}
-		default:
-			sb.WriteByte(arg[i])
-		}
-	}
-
-	if inSingleQoute {
-		return "", errors.New("syntax error: unclosed single quote")
-	}
-
-	return sb.String(), nil
-}
-
-func handleCat(args []string) {
-	var newArgs []string
-	for _, arg := range args {
-		content, err := handleSingleQuote(arg)
-		if err == nil {
-			newArgs = append(newArgs, content)
-		}
-	}
-	cmd := exec.Command("cat", newArgs...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Run()
-}
-
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -110,32 +138,20 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Error reading input: ", err)
 			os.Exit(1)
 		}
-		input = strings.TrimSpace(input)
-		args := strings.Split(input, " ")
-		command, args := args[0], args[1:]
+
+		command, args := parseCommand(input)
 
 		switch command {
 		case "exit":
 			os.Exit(0)
 		case "echo":
-			if strings.HasPrefix(args[0], "'") {
-				content, err := handleSingleQuote(strings.Join(args, " "))
-				if err == nil {
-					fmt.Println(content)
-				} else {
-					fmt.Println(err)
-				}
-			} else {
-				fmt.Println(input[5:])
-			}
+			fmt.Println(strings.Join(args, " "))
 		case "pwd":
 			handlePwd()
 		case "cd":
 			handleCd(args)
 		case "type":
 			handleType(args)
-		case "cat":
-			handleCat(args)
 
 		default:
 			if _, err := exec.LookPath(command); err == nil {
