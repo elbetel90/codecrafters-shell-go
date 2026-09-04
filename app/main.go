@@ -119,10 +119,12 @@ func main() {
 			os.Exit(0)
 		case "echo":
 			if strings.HasPrefix(args[0], "'") {
-				content, err := handleSingleQuote(args[0])
+				content, err := handleSingleQuote(strings.Join(args, " "))
 				if err == nil {
 					fmt.Println("content length", len(content))
 					fmt.Println(content)
+				} else {
+					fmt.Println(err)
 				}
 			} else {
 				fmt.Println(input[5:])
