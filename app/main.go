@@ -98,7 +98,6 @@ func parseCommand(input string) (cmd string, args []string) {
 		}
 
 	}
-	fmt.Println(st)
 
 	if st.Top() != 0 {
 		// return "", nil, fmt.Errorf("syntax error: unclosed single quote")
