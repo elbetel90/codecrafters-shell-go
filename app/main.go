@@ -31,6 +31,14 @@ const (
 	StateTransitionEscapeDoubleQoute
 )
 
+type RedirectType int
+
+const (
+	RedirectTypeNone RedirectType = iota
+	RedirectTypeStdout
+	RedirectTypeStderr
+)
+
 type stack []rune
 
 func (s *stack) Push(r rune) {
@@ -51,6 +59,7 @@ type Command struct {
 	Cmd        string
 	Args       []string
 	OutputFile string
+	ErrorFile  string
 }
 
 func parseCommand(input string) *Command {
@@ -58,10 +67,12 @@ func parseCommand(input string) *Command {
 	has_token := false
 	var sb strings.Builder
 	is_redirect_target := false
-	last_was_unqouted_one := false
-	output_file := ""
+	stdout_file := ""
+	stderr_file := ""
 
-	st := stack{0}
+	redirect_mode := RedirectTypeNone
+
+	st := stack{rune(StateTransitionNormal)}
 
 	for _, ch := range input {
 		current_mode := st.Top()
@@ -71,46 +82,49 @@ func parseCommand(input string) *Command {
 			case '\'':
 				st.Push(rune(StateTransitionSingleQoute))
 				has_token = true
-				last_was_unqouted_one = false
 			case '"':
 				st.Push(rune(StateTranstionDoubleQoute))
 				has_token = true
-				last_was_unqouted_one = false
 			case ' ', '\t':
 				if has_token {
 					current_token := sb.String()
 					if is_redirect_target {
-						output_file = current_token
+						switch redirect_mode {
+						case RedirectTypeStderr:
+							stderr_file = current_token
+						case RedirectTypeStdout:
+							stdout_file = current_token
+						}
 						is_redirect_target = false
+						redirect_mode = RedirectTypeNone
 					} else {
 						tokens = append(tokens, current_token)
 					}
 					sb.Reset()
 					has_token = false
 				}
-				last_was_unqouted_one = false
 			case '\\':
 				st.Push(rune(StateTransitionEscapeOutside))
 				has_token = true
-				last_was_unqouted_one = false
 			case '>':
-				if last_was_unqouted_one {
-					buf := sb.String()
-					trimmed_buf := buf[:len(buf)-1]
-					if len(trimmed_buf) > 0 {
-						tokens = append(tokens, trimmed_buf)
+				buf := sb.String()
+				switch buf {
+				case "1":
+					redirect_mode = RedirectTypeStdout
+				case "2":
+					redirect_mode = RedirectTypeStderr
+				default:
+					if len(buf) > 0 {
+						tokens = append(tokens, buf)
 					}
-				} else if has_token {
-					tokens = append(tokens, sb.String())
+					redirect_mode = RedirectTypeStdout
 				}
 				sb.Reset()
 				has_token = false
 				is_redirect_target = true
-				last_was_unqouted_one = false
 			default:
 				sb.WriteRune(ch)
 				has_token = true
-				last_was_unqouted_one = (ch == '1')
 			}
 		case rune(StateTransitionSingleQoute):
 			if ch == '\'' {
@@ -151,20 +165,27 @@ func parseCommand(input string) *Command {
 	if has_token {
 		current_token := sb.String()
 		if is_redirect_target {
-			output_file = current_token
+			switch redirect_mode {
+			case RedirectTypeStderr:
+				stderr_file = current_token
+			case RedirectTypeStdout:
+				stdout_file = current_token
+			}
 			is_redirect_target = false
 		} else {
 			tokens = append(tokens, current_token)
 		}
-	} else if is_redirect_target {
+	}
 
+	if is_redirect_target {
+		// we will print here later
 	}
 
 	if len(tokens) == 0 {
 		return nil
 	}
 
-	return &Command{Cmd: tokens[0], Args: tokens[1:], OutputFile: output_file}
+	return &Command{Cmd: tokens[0], Args: tokens[1:], OutputFile: stdout_file, ErrorFile: stderr_file}
 }
 
 func handlePwd() {
@@ -274,13 +295,23 @@ func main() {
 				cmd.Stderr = os.Stderr
 
 				if command.OutputFile != "" {
-					output_file, err := openFile(command.OutputFile)
+					stdout_file, err := openFile(command.OutputFile)
 					if err != nil {
 						// fmt.Fprintln(os.Stderr, err)
 						return
 					}
-					defer output_file.Close()
-					cmd.Stdout = output_file
+					defer stdout_file.Close()
+					cmd.Stdout = stdout_file
+				}
+
+				if command.ErrorFile != "" {
+					stderr_file, err := openFile(command.ErrorFile)
+					if err != nil {
+						// fmt.Fprintln(os.Stderr, err)
+						return
+					}
+					defer stderr_file.Close()
+					cmd.Stderr = stderr_file
 				}
 
 				if err := cmd.Run(); err != nil {
