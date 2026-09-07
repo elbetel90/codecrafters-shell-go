@@ -47,10 +47,19 @@ func (s stack) Top() rune {
 	return s[len(s)-1]
 }
 
-func parseCommand(input string) (cmd string, args []string) {
+type Command struct {
+	Cmd        string
+	Args       []string
+	OutputFile string
+}
+
+func parseCommand(input string) *Command {
 	var tokens []string
-	hasToken := false
+	has_token := false
 	var sb strings.Builder
+	is_redirect_target := false
+	last_was_unqouted_one := false
+	output_file := ""
 
 	st := stack{0}
 
@@ -61,23 +70,47 @@ func parseCommand(input string) (cmd string, args []string) {
 			switch ch {
 			case '\'':
 				st.Push(rune(StateTransitionSingleQoute))
-				hasToken = true
+				has_token = true
+				last_was_unqouted_one = false
 			case '"':
 				st.Push(rune(StateTranstionDoubleQoute))
-				hasToken = true
+				has_token = true
+				last_was_unqouted_one = false
 			case ' ', '\t':
-				if hasToken {
-					tokens = append(tokens, sb.String())
+				if has_token {
+					current_token := sb.String()
+					if is_redirect_target {
+						output_file = current_token
+						is_redirect_target = false
+					} else {
+						tokens = append(tokens, current_token)
+					}
 					sb.Reset()
-					hasToken = false
+					has_token = false
 				}
+				last_was_unqouted_one = false
 			case '\\':
 				st.Push(rune(StateTransitionEscapeOutside))
-				hasToken = true
-				continue
+				has_token = true
+				last_was_unqouted_one = false
+			case '>':
+				if last_was_unqouted_one {
+					buf := sb.String()
+					trimmed_buf := buf[:len(buf)-1]
+					if len(trimmed_buf) > 0 {
+						tokens = append(tokens, trimmed_buf)
+					}
+				} else if has_token {
+					tokens = append(tokens, sb.String())
+				}
+				sb.Reset()
+				has_token = false
+				is_redirect_target = true
+				last_was_unqouted_one = false
 			default:
 				sb.WriteRune(ch)
-				hasToken = true
+				has_token = true
+				last_was_unqouted_one = (ch == '1')
 			}
 		case rune(StateTransitionSingleQoute):
 			if ch == '\'' {
@@ -106,7 +139,7 @@ func parseCommand(input string) (cmd string, args []string) {
 		case rune(StateTransitionEscapeOutside):
 			sb.WriteRune(ch)
 			st.Pop()
-			hasToken = true
+			has_token = true
 		}
 
 	}
@@ -115,15 +148,23 @@ func parseCommand(input string) (cmd string, args []string) {
 		// return "", nil, fmt.Errorf("syntax error: unclosed single quote")
 	}
 
-	if hasToken {
-		tokens = append(tokens, sb.String())
+	if has_token {
+		current_token := sb.String()
+		if is_redirect_target {
+			output_file = current_token
+			is_redirect_target = false
+		} else {
+			tokens = append(tokens, current_token)
+		}
+	} else if is_redirect_target {
+
 	}
 
 	if len(tokens) == 0 {
-		return "", nil
+		return nil
 	}
 
-	return tokens[0], tokens[1:]
+	return &Command{Cmd: tokens[0], Args: tokens[1:], OutputFile: output_file}
 }
 
 func handlePwd() {
@@ -165,6 +206,8 @@ func handleType(args []string) {
 	}
 }
 
+// parsing, file setup, and process execution
+
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -181,23 +224,23 @@ func main() {
 			continue
 		}
 
-		command, args := parseCommand(input)
+		command := parseCommand(input)
+		fmt.Println("args_output_file: ", command.Args, command.OutputFile)
 
-		switch command {
+		switch command.Cmd {
 		case "exit":
 			os.Exit(0)
 		case "echo":
-			fmt.Println(strings.Join(args, " "))
+			fmt.Println(strings.Join(command.Args, " "))
 		case "pwd":
 			handlePwd()
 		case "cd":
-			handleCd(args)
+			handleCd(command.Args)
 		case "type":
-			handleType(args)
-
+			handleType(command.Args)
 		default:
-			if _, err := exec.LookPath(command); err == nil {
-				cmd := exec.Command(command, args...)
+			if _, err := exec.LookPath(command.Cmd); err == nil {
+				cmd := exec.Command(command.Cmd, command.Args...)
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
 				cmd.Run()
