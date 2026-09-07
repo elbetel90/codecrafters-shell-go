@@ -82,27 +82,26 @@ func parseCommand(input string) (cmd string, args []string) {
 			if ch == '\'' {
 				st.Pop()
 			} else {
-				switch ch {
-				case '\\':
-					sb.WriteRune('\\')
-					st.Pop()
-				case '"':
-					sb.WriteRune('"')
-					st.Pop()
-				default:
-					sb.WriteRune(ch)
-				}
-			}
-		case '"':
-			if ch == '"' {
-				st.Pop()
-			} else {
-				if ch == '\\' {
-					st.Push('\\')
-					continue
-				}
 				sb.WriteRune(ch)
 			}
+		case '"':
+			switch ch {
+			case '"':
+				st.Pop()
+			case '\\':
+				st.Push('E')
+			default:
+				sb.WriteRune(ch)
+			}
+		case 'E':
+			switch ch {
+			case '"', '\\':
+				sb.WriteRune(ch)
+			default:
+				sb.WriteRune('\\')
+				sb.WriteRune(ch)
+			}
+			st.Pop()
 		case '\\':
 			sb.WriteRune(ch)
 			st.Pop()
