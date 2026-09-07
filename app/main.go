@@ -206,19 +206,20 @@ func handleType(args []string) {
 	}
 }
 
-func handleEcho(args []string, path string) {
-	output := strings.Join(args, " ")
-	if path != "" {
-		output_file, err := openFile(path)
+func handleEcho(args []string, outputFile string) {
+	output := strings.Join(args, " ") + "\n"
+
+	if outputFile != "" {
+		outFile, err := openFile(outputFile)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
+		defer outFile.Close()
 
-		defer output_file.Close()
-		output_file.WriteString(output)
+		outFile.WriteString(output)
 	} else {
-		fmt.Println(output)
+		fmt.Print(output)
 	}
 }
 
