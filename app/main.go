@@ -206,7 +206,35 @@ func handleType(args []string) {
 	}
 }
 
-// parsing, file setup, and process execution
+func handleEcho(args []string, path string) {
+	output := strings.Join(args, " ") + "\n"
+	if path != "" {
+		output_file, err := openFile(path)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+
+		defer output_file.Close()
+		output_file.WriteString(output)
+	} else {
+		fmt.Println(output)
+	}
+}
+
+// file setup
+func openFile(path string) (*os.File, error) {
+	if path == "" {
+		return nil, nil
+	}
+
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open output file: %w", err)
+	}
+
+	return file, err
+}
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
@@ -230,7 +258,7 @@ func main() {
 		case "exit":
 			os.Exit(0)
 		case "echo":
-			fmt.Println(strings.Join(command.Args, " "))
+			handleEcho(command.Args, command.OutputFile)
 		case "pwd":
 			handlePwd()
 		case "cd":
@@ -240,9 +268,23 @@ func main() {
 		default:
 			if _, err := exec.LookPath(command.Cmd); err == nil {
 				cmd := exec.Command(command.Cmd, command.Args...)
+				cmd.Stdin = os.Stdin
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
-				cmd.Run()
+
+				if command.OutputFile != "" {
+					output_file, err := openFile(command.OutputFile)
+					if err != nil {
+						fmt.Fprintln(os.Stderr, err)
+						return
+					}
+					defer output_file.Close()
+					cmd.Stdout = output_file
+				}
+
+				if err := cmd.Run(); err != nil {
+					fmt.Printf("%s: command failed: %v\n", command, err)
+				}
 			} else {
 				fmt.Println(input + ": command not found")
 
