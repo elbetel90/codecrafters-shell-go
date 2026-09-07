@@ -21,6 +21,15 @@ var built_ins = []string{
 	"cd",
 }
 
+// type StateTransition int
+
+// const (
+// 	StateNormal StateTransition = iota
+// 	StateSingleQoute
+// 	StateDoubleQoute
+// 	StateIn
+// )
+
 type stack []rune
 
 func (s *stack) Push(r rune) {
@@ -73,12 +82,25 @@ func parseCommand(input string) (cmd string, args []string) {
 			if ch == '\'' {
 				st.Pop()
 			} else {
-				sb.WriteRune(ch)
+				switch ch {
+				case '\\':
+					sb.WriteRune('\\')
+					st.Pop()
+				case '"':
+					sb.WriteRune('"')
+					st.Pop()
+				default:
+					sb.WriteRune(ch)
+				}
 			}
 		case '"':
 			if ch == '"' {
 				st.Pop()
 			} else {
+				if ch == '\\' {
+					st.Push('\\')
+					continue
+				}
 				sb.WriteRune(ch)
 			}
 		case '\\':
