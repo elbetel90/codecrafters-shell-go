@@ -207,7 +207,7 @@ func handleType(args []string) {
 }
 
 func handleEcho(args []string, path string) {
-	output := strings.Join(args, " ") + "\n"
+	output := strings.Join(args, " ")
 	if path != "" {
 		output_file, err := openFile(path)
 		if err != nil {
@@ -275,7 +275,7 @@ func main() {
 				if command.OutputFile != "" {
 					output_file, err := openFile(command.OutputFile)
 					if err != nil {
-						fmt.Fprintln(os.Stderr, err)
+						// fmt.Fprintln(os.Stderr, err)
 						return
 					}
 					defer output_file.Close()
@@ -283,7 +283,7 @@ func main() {
 				}
 
 				if err := cmd.Run(); err != nil {
-					fmt.Printf("%s: command failed: %v\n", command, err)
+					// fmt.Printf("%s: command failed: %v\n", command, err)
 				}
 			} else {
 				fmt.Println(input + ": command not found")
