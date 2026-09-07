@@ -21,14 +21,15 @@ var built_ins = []string{
 	"cd",
 }
 
-// type StateTransition int
+type StateTransition int
 
-// const (
-// 	StateNormal StateTransition = iota
-// 	StateSingleQoute
-// 	StateDoubleQoute
-// 	StateIn
-// )
+const (
+	StateTransitionNormal StateTransition = iota
+	StateTransitionSingleQoute
+	StateTranstionDoubleQoute
+	StateTransitionEscapeOutside
+	StateTransitionEscapeDoubleQoute
+)
 
 type stack []rune
 
@@ -56,13 +57,13 @@ func parseCommand(input string) (cmd string, args []string) {
 	for _, ch := range input {
 		current_mode := st.Top()
 		switch current_mode {
-		case 0:
+		case rune(StateTransitionNormal):
 			switch ch {
 			case '\'':
-				st.Push('\'')
+				st.Push(rune(StateTransitionSingleQoute))
 				hasToken = true
 			case '"':
-				st.Push('"')
+				st.Push(rune(StateTranstionDoubleQoute))
 				hasToken = true
 			case ' ', '\t':
 				if hasToken {
@@ -71,29 +72,29 @@ func parseCommand(input string) (cmd string, args []string) {
 					hasToken = false
 				}
 			case '\\':
-				st.Push('\\')
+				st.Push(rune(StateTransitionEscapeOutside))
 				hasToken = true
 				continue
 			default:
 				sb.WriteRune(ch)
 				hasToken = true
 			}
-		case '\'':
+		case rune(StateTransitionSingleQoute):
 			if ch == '\'' {
 				st.Pop()
 			} else {
 				sb.WriteRune(ch)
 			}
-		case '"':
+		case rune(StateTranstionDoubleQoute):
 			switch ch {
 			case '"':
 				st.Pop()
 			case '\\':
-				st.Push('E')
+				st.Push(rune(StateTransitionEscapeDoubleQoute))
 			default:
 				sb.WriteRune(ch)
 			}
-		case 'E':
+		case rune(StateTransitionEscapeDoubleQoute):
 			switch ch {
 			case '"', '\\':
 				sb.WriteRune(ch)
@@ -102,7 +103,7 @@ func parseCommand(input string) (cmd string, args []string) {
 				sb.WriteRune(ch)
 			}
 			st.Pop()
-		case '\\':
+		case rune(StateTransitionEscapeOutside):
 			sb.WriteRune(ch)
 			st.Pop()
 			hasToken = true
