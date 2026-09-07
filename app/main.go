@@ -225,7 +225,6 @@ func main() {
 		}
 
 		command := parseCommand(input)
-		fmt.Println("args_output_file: ", command.Args, command.OutputFile)
 
 		switch command.Cmd {
 		case "exit":
