@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -227,22 +228,22 @@ func handleType(args []string) {
 	}
 }
 
-func handleEcho(args []string, outputFile string) {
-	output := strings.Join(args, " ") + "\n"
+// func handleEcho(args []string, outputFile string) {
+// 	output := strings.Join(args, " ") + "\n"
 
-	if outputFile != "" {
-		outFile, err := openFile(outputFile)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		}
-		defer outFile.Close()
+// 	if outputFile != "" {
+// 		outFile, err := openFile(outputFile)
+// 		if err != nil {
+// 			fmt.Fprintln(os.Stderr, err)
+// 			return
+// 		}
+// 		defer outFile.Close()
 
-		outFile.WriteString(output)
-	} else {
-		fmt.Print(output)
-	}
-}
+// 		outFile.WriteString(output)
+// 	} else {
+// 		fmt.Print(output)
+// 	}
+// }
 
 // file setup
 func openFile(path string) (*os.File, error) {
@@ -256,6 +257,43 @@ func openFile(path string) (*os.File, error) {
 	}
 
 	return file, err
+}
+
+func getOutputWriters(command *Command) (io.Writer, io.Writer, func(), error) {
+	var stdout_writer io.Writer = os.Stdout
+	var stderr_writer io.Writer = os.Stderr
+	var closers []func()
+
+	clean_up := func() {
+		for _, close_fn := range closers {
+			close_fn()
+		}
+	}
+
+	if command.OutputFile != "" {
+		if err := os.MkdirAll(filepath.Dir(command.OutputFile), 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
+		}
+		f, err := os.OpenFile(command.OutputFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error opening file: %v\n", err)
+		}
+		closers = append(closers, func() { f.Close() })
+		stdout_writer = f
+	}
+	if command.ErrorFile != "" {
+		if err := os.MkdirAll(filepath.Dir(command.ErrorFile), 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
+		}
+		f, err := os.OpenFile(command.ErrorFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error opening file: %v\n", err)
+		}
+		closers = append(closers, func() { f.Close() })
+		stderr_writer = f
+	}
+
+	return stdout_writer, stderr_writer, clean_up, nil
 }
 
 func main() {
@@ -276,11 +314,18 @@ func main() {
 
 		command := parseCommand(input)
 
+		stdout_writer, stderr_writer, _, err := getOutputWriters(command)
+		if err != nil {
+			fmt.Println(err)
+		}
+		// defer cleanup()
+
 		switch command.Cmd {
 		case "exit":
 			os.Exit(0)
 		case "echo":
-			handleEcho(command.Args, command.OutputFile)
+			// handleEcho(command.Args, command.OutputFile)
+			fmt.Fprintln(stdout_writer, strings.Join(command.Args, " "))
 		case "pwd":
 			handlePwd()
 		case "cd":
@@ -289,34 +334,10 @@ func main() {
 			handleType(command.Args)
 		default:
 			if _, err := exec.LookPath(command.Cmd); err == nil {
-				cmd := exec.Command(command.Cmd, command.Args...)
-				cmd.Stdin = os.Stdin
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-
-				if command.OutputFile != "" {
-					stdout_file, err := openFile(command.OutputFile)
-					if err != nil {
-						// fmt.Fprintln(os.Stderr, err)
-						return
-					}
-					defer stdout_file.Close()
-					cmd.Stdout = stdout_file
-				}
-
-				if command.ErrorFile != "" {
-					stderr_file, err := openFile(command.ErrorFile)
-					if err != nil {
-						// fmt.Fprintln(os.Stderr, err)
-						return
-					}
-					defer stderr_file.Close()
-					cmd.Stderr = stderr_file
-				}
-
-				if err := cmd.Run(); err != nil {
-					// fmt.Printf("%s: command failed: %v\n", command, err)
-				}
+				execCmd := exec.Command(command.Cmd, command.Args...)
+				execCmd.Stdout = stdout_writer
+				execCmd.Stderr = stderr_writer
+				execCmd.Run()
 			} else {
 				fmt.Println(input + ": command not found")
 

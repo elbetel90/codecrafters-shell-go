@@ -1,1 +1,1 @@
-cat: newhellow2: No such file or directory
+cat: some: No such file or directory
