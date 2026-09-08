@@ -14,12 +14,22 @@ import (
 // Ensures gofmt doesn't remove the "fmt" import in stage 1 (feel free to remove this!)
 var _ = fmt.Print
 
+type BuiltinCommand string
+
+const (
+	BuiltinCommandExit BuiltinCommand = "exit"
+	BuiltinCommandEcho BuiltinCommand = "echo"
+	BuiltinCommandType BuiltinCommand = "type"
+	BuiltinCommandPwd  BuiltinCommand = "pwd"
+	BuiltinCommandCd   BuiltinCommand = "cd"
+)
+
 var built_ins = []string{
-	"exit",
-	"echo",
-	"type",
-	"pwd",
-	"cd",
+	string(BuiltinCommandExit),
+	string(BuiltinCommandEcho),
+	string(BuiltinCommandType),
+	string(BuiltinCommandPwd),
+	string(BuiltinCommandCd),
 }
 
 type StateTransition int
@@ -186,7 +196,12 @@ func parseCommand(input string) *Command {
 		return nil
 	}
 
-	return &Command{Cmd: tokens[0], Args: tokens[1:], OutputFile: stdout_file, ErrorFile: stderr_file}
+	return &Command{
+		Cmd:        tokens[0],
+		Args:       tokens[1:],
+		OutputFile: stdout_file,
+		ErrorFile:  stderr_file,
+	}
 }
 
 func handlePwd() {
@@ -270,7 +285,7 @@ func getOutputWriters(command *Command) (io.Writer, io.Writer, func(), error) {
 		if err := os.MkdirAll(filepath.Dir(command.ErrorFile), 0755); err != nil {
 			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
 		}
-		f, err := os.OpenFile(command.ErrorFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		f, err := openFile(command.ErrorFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error opening file: %v\n", err)
 		}
@@ -286,17 +301,16 @@ func executeCommands(input string, command *Command, stdout_writer, stderr_write
 	if command == nil || command.Cmd == "" {
 		return
 	}
-
 	switch command.Cmd {
-	case "exit":
+	case string(BuiltinCommandExit):
 		os.Exit(0)
-	case "echo":
+	case string(BuiltinCommandEcho):
 		fmt.Fprintln(stdout_writer, strings.Join(command.Args, " "))
-	case "pwd":
+	case string(BuiltinCommandPwd):
 		handlePwd()
-	case "cd":
+	case string(BuiltinCommandCd):
 		handleCd(command.Args)
-	case "type":
+	case string(BuiltinCommandType):
 		handleType(command.Args)
 	default:
 		if _, err := exec.LookPath(command.Cmd); err == nil {
@@ -306,7 +320,6 @@ func executeCommands(input string, command *Command, stdout_writer, stderr_write
 			execCmd.Run()
 		} else {
 			fmt.Println(input + ": command not found")
-
 		}
 	}
 }
