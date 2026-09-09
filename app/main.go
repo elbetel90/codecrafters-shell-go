@@ -48,6 +48,8 @@ const (
 	RedirectTypeNone RedirectType = iota
 	RedirectTypeStdout
 	RedirectTypeStderr
+	RedirectTypeAppendStdout
+	RedirectTypeAppendStderr
 )
 
 type stack []rune
@@ -67,25 +69,33 @@ func (s stack) Top() rune {
 }
 
 type Command struct {
-	Cmd        string
-	Args       []string
-	OutputFile string
-	ErrorFile  string
+	Cmd          string
+	Args         []string
+	OutputFile   string
+	ErrorFile    string
+	AppendStdout string
+	AppendStderr string
 }
 
 func parseCommand(input string) *Command {
-	var tokens []string
-	has_token := false
 	var sb strings.Builder
+
+	var tokens []string
+
+	has_token := false
 	is_redirect_target := false
+
 	stdout_file := ""
 	stderr_file := ""
+	append_stdout_file := ""
+	append_stderr_file := ""
 
 	redirect_mode := RedirectTypeNone
 
 	st := stack{rune(StateTransitionNormal)}
 
-	for _, ch := range input {
+	for i := 0; i < len(input); i++ {
+		ch := rune(input[i])
 		current_mode := st.Top()
 		switch current_mode {
 		case rune(StateTransitionNormal):
@@ -105,6 +115,10 @@ func parseCommand(input string) *Command {
 							stderr_file = current_token
 						case RedirectTypeStdout:
 							stdout_file = current_token
+						case RedirectTypeAppendStdout:
+							append_stdout_file = current_token
+						case RedirectTypeAppendStderr:
+							append_stderr_file = current_token
 						}
 						is_redirect_target = false
 						redirect_mode = RedirectTypeNone
@@ -118,17 +132,34 @@ func parseCommand(input string) *Command {
 				st.Push(rune(StateTransitionEscapeOutside))
 				has_token = true
 			case '>':
+				is_append := false
+				if i+1 < len(input) && input[i+1] == '>' {
+					is_append = true
+					i++
+				}
 				buf := sb.String()
 				switch buf {
 				case "1":
-					redirect_mode = RedirectTypeStdout
+					if is_append {
+						redirect_mode = RedirectTypeAppendStdout
+					} else {
+						redirect_mode = RedirectTypeStdout
+					}
 				case "2":
-					redirect_mode = RedirectTypeStderr
+					if is_append {
+						redirect_mode = RedirectTypeAppendStderr
+					} else {
+						redirect_mode = RedirectTypeStderr
+					}
 				default:
 					if len(buf) > 0 {
 						tokens = append(tokens, buf)
 					}
-					redirect_mode = RedirectTypeStdout
+					if is_append {
+						redirect_mode = RedirectTypeAppendStdout
+					} else {
+						redirect_mode = RedirectTypeStdout
+					}
 				}
 				sb.Reset()
 				has_token = false
@@ -181,6 +212,10 @@ func parseCommand(input string) *Command {
 				stderr_file = current_token
 			case RedirectTypeStdout:
 				stdout_file = current_token
+			case RedirectTypeAppendStdout:
+				append_stdout_file = current_token
+			case RedirectTypeAppendStderr:
+				append_stderr_file = current_token
 			}
 			is_redirect_target = false
 		} else {
@@ -197,10 +232,12 @@ func parseCommand(input string) *Command {
 	}
 
 	return &Command{
-		Cmd:        tokens[0],
-		Args:       tokens[1:],
-		OutputFile: stdout_file,
-		ErrorFile:  stderr_file,
+		Cmd:          tokens[0],
+		Args:         tokens[1:],
+		OutputFile:   stdout_file,
+		ErrorFile:    stderr_file,
+		AppendStdout: append_stdout_file,
+		AppendStderr: append_stderr_file,
 	}
 }
 
@@ -244,12 +281,16 @@ func handleType(args []string) {
 }
 
 // file setup
-func openFile(path string) (*os.File, error) {
+func openFile(path string, is_append bool) (*os.File, error) {
 	if path == "" {
 		return nil, nil
 	}
 
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	flag := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	if is_append {
+		flag = os.O_WRONLY | os.O_CREATE | os.O_APPEND
+	}
+	file, err := os.OpenFile(path, flag, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open output file: %w", err)
 	}
@@ -272,24 +313,59 @@ func getOutputWriters(command *Command) (io.Writer, io.Writer, func(), error) {
 	if command.OutputFile != "" {
 		if err := os.MkdirAll(filepath.Dir(command.OutputFile), 0755); err != nil {
 			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
+			return nil, nil, clean_up, nil
 		}
-		f, err := openFile(command.OutputFile)
+		f, err := openFile(command.OutputFile, false)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error opening file: %v\n", err)
+			return nil, nil, clean_up, nil
 		}
-		closers = append(closers, func() { f.Close() })
+		out_closer := f
+		closers = append(closers, func() { out_closer.Close() })
 		stdout_writer = f
 	}
 
 	if command.ErrorFile != "" {
 		if err := os.MkdirAll(filepath.Dir(command.ErrorFile), 0755); err != nil {
 			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
+			return nil, nil, clean_up, nil
 		}
-		f, err := openFile(command.ErrorFile)
+		f, err := openFile(command.ErrorFile, false)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error opening file: %v\n", err)
+			return nil, nil, clean_up, nil
 		}
-		closers = append(closers, func() { f.Close() })
+		err_closer := f
+		closers = append(closers, func() { err_closer.Close() })
+		stderr_writer = f
+	}
+
+	if command.AppendStdout != "" {
+		if err := os.MkdirAll(filepath.Dir(command.AppendStdout), 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
+		}
+		f, err := openFile(command.AppendStdout, true)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error opening file: %v\n", err)
+			return nil, nil, clean_up, nil
+		}
+		out_closer := f
+		closers = append(closers, func() { out_closer.Close() })
+		stdout_writer = f
+	}
+
+	if command.AppendStderr != "" {
+		if err := os.MkdirAll(filepath.Dir(command.AppendStderr), 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
+			return nil, nil, clean_up, nil
+		}
+		f, err := openFile(command.AppendStderr, true)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error opening file: %v\n", err)
+			return nil, nil, clean_up, nil
+		}
+		err_closer := f
+		closers = append(closers, func() { err_closer.Close() })
 		stderr_writer = f
 	}
 
