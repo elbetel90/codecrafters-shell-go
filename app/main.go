@@ -73,8 +73,8 @@ type Command struct {
 	Args         []string
 	OutputFile   string
 	ErrorFile    string
-	AppendStdout string
-	AppendStderr string
+	AppendStdout bool
+	AppendStderr bool
 }
 
 func parseCommand(input string) *Command {
@@ -84,11 +84,11 @@ func parseCommand(input string) *Command {
 
 	has_token := false
 	is_redirect_target := false
+	is_append_out := false
+	is_append_err := false
 
 	stdout_file := ""
 	stderr_file := ""
-	append_stdout_file := ""
-	append_stderr_file := ""
 
 	redirect_mode := RedirectTypeNone
 
@@ -113,12 +113,20 @@ func parseCommand(input string) *Command {
 						switch redirect_mode {
 						case RedirectTypeStderr:
 							stderr_file = current_token
+							is_append_err = false
+							is_append_out = false
 						case RedirectTypeStdout:
 							stdout_file = current_token
+							is_append_err = false
+							is_append_out = false
 						case RedirectTypeAppendStdout:
-							append_stdout_file = current_token
+							stdout_file = current_token
+							is_append_err = false
+							is_append_out = true
 						case RedirectTypeAppendStderr:
-							append_stderr_file = current_token
+							stderr_file = current_token
+							is_append_err = true
+							is_append_out = false
 						}
 						is_redirect_target = false
 						redirect_mode = RedirectTypeNone
@@ -142,14 +150,22 @@ func parseCommand(input string) *Command {
 				case "1":
 					if is_append {
 						redirect_mode = RedirectTypeAppendStdout
+						is_append_out = true
+						is_append_err = false
 					} else {
 						redirect_mode = RedirectTypeStdout
+						is_append_out = false
+						is_append_err = false
 					}
 				case "2":
 					if is_append {
 						redirect_mode = RedirectTypeAppendStderr
+						is_append_out = false
+						is_append_err = true
 					} else {
 						redirect_mode = RedirectTypeStderr
+						is_append_out = false
+						is_append_err = false
 					}
 				default:
 					if len(buf) > 0 {
@@ -157,8 +173,12 @@ func parseCommand(input string) *Command {
 					}
 					if is_append {
 						redirect_mode = RedirectTypeAppendStdout
+						is_append_out = true
+						is_append_err = false
 					} else {
 						redirect_mode = RedirectTypeStdout
+						is_append_out = false
+						is_append_err = false
 					}
 				}
 				sb.Reset()
@@ -210,12 +230,20 @@ func parseCommand(input string) *Command {
 			switch redirect_mode {
 			case RedirectTypeStderr:
 				stderr_file = current_token
+				is_append_err = false
+				is_append_out = false
 			case RedirectTypeStdout:
 				stdout_file = current_token
+				is_append_err = false
+				is_append_out = false
 			case RedirectTypeAppendStdout:
-				append_stdout_file = current_token
+				stdout_file = current_token
+				is_append_err = false
+				is_append_out = true
 			case RedirectTypeAppendStderr:
-				append_stderr_file = current_token
+				stderr_file = current_token
+				is_append_err = true
+				is_append_out = false
 			}
 			is_redirect_target = false
 		} else {
@@ -236,8 +264,8 @@ func parseCommand(input string) *Command {
 		Args:         tokens[1:],
 		OutputFile:   stdout_file,
 		ErrorFile:    stderr_file,
-		AppendStdout: append_stdout_file,
-		AppendStderr: append_stderr_file,
+		AppendStdout: is_append_out,
+		AppendStderr: is_append_err,
 	}
 }
 
@@ -315,7 +343,7 @@ func getOutputWriters(command *Command) (io.Writer, io.Writer, func(), error) {
 			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
 			return nil, nil, clean_up, nil
 		}
-		f, err := openFile(command.OutputFile, false)
+		f, err := openFile(command.OutputFile, command.AppendStdout)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error opening file: %v\n", err)
 			return nil, nil, clean_up, nil
@@ -330,36 +358,7 @@ func getOutputWriters(command *Command) (io.Writer, io.Writer, func(), error) {
 			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
 			return nil, nil, clean_up, nil
 		}
-		f, err := openFile(command.ErrorFile, false)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error opening file: %v\n", err)
-			return nil, nil, clean_up, nil
-		}
-		err_closer := f
-		closers = append(closers, func() { err_closer.Close() })
-		stderr_writer = f
-	}
-
-	if command.AppendStdout != "" {
-		if err := os.MkdirAll(filepath.Dir(command.AppendStdout), 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
-		}
-		f, err := openFile(command.AppendStdout, true)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error opening file: %v\n", err)
-			return nil, nil, clean_up, nil
-		}
-		out_closer := f
-		closers = append(closers, func() { out_closer.Close() })
-		stdout_writer = f
-	}
-
-	if command.AppendStderr != "" {
-		if err := os.MkdirAll(filepath.Dir(command.AppendStderr), 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
-			return nil, nil, clean_up, nil
-		}
-		f, err := openFile(command.AppendStderr, true)
+		f, err := openFile(command.ErrorFile, command.AppendStderr)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error opening file: %v\n", err)
 			return nil, nil, clean_up, nil
@@ -417,6 +416,11 @@ func main() {
 		}
 
 		command := parseCommand(input)
+		fmt.Println("args: ", command.Args)
+		fmt.Println("stdout_file: ", command.OutputFile)
+		fmt.Println("stderr_file: ", command.ErrorFile)
+		fmt.Println("is_append_out: ", command.AppendStdout)
+		fmt.Println("is_append_err: ", command.AppendStderr)
 
 		stdout_writer, stderr_writer, cleanup, err := getOutputWriters(command)
 		if err != nil {
