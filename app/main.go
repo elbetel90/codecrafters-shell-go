@@ -416,12 +416,6 @@ func main() {
 		}
 
 		command := parseCommand(input)
-		fmt.Println("args: ", command.Args)
-		fmt.Println("stdout_file: ", command.OutputFile)
-		fmt.Println("stderr_file: ", command.ErrorFile)
-		fmt.Println("is_append_out: ", command.AppendStdout)
-		fmt.Println("is_append_err: ", command.AppendStderr)
-
 		stdout_writer, stderr_writer, cleanup, err := getOutputWriters(command)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
