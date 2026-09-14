@@ -13,9 +13,11 @@ import (
 var _ = fmt.Print
 
 func main() {
+	all_commands := parser.GetAllCommands()
+
 	for {
 		fmt.Print("$ ")
-		input, err := parser.ReadLine()
+		input, err := parser.ReadLine(all_commands)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return

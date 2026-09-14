@@ -37,3 +37,9 @@ const (
 	RedirectTypeAppendStdout
 	RedirectTypeAppendStderr
 )
+
+type EnvVar string
+
+const (
+	EnvVarPath EnvVar = "PATH"
+)
