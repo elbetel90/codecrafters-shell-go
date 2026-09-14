@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +8,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"golang.org/x/term"
 )
 
 // Ensures gofmt doesn't remove the "fmt" import in stage 1 (feel free to remove this!)
@@ -107,6 +108,9 @@ func parseCommand(input string) *Command {
 				st.Push(rune(StateTranstionDoubleQoute))
 				has_token = true
 			case ' ', '\t':
+				if ch == '\t' {
+					fmt.Println("called here")
+				}
 				if has_token {
 					current_token := sb.String()
 					if is_redirect_target {
@@ -399,21 +403,88 @@ func executeCommands(input string, command *Command, stdout_writer, stderr_write
 	}
 }
 
-func main() {
-	reader := bufio.NewReader(os.Stdin)
+func readLine() (string, error) {
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		return "", err
+	}
+	defer term.Restore(int(os.Stdin.Fd()), oldState)
+
+	var line_byte []byte
+	buf := make([]byte, 1)
 
 	for {
-		fmt.Print("$ ")
-		input, err := reader.ReadString('\n')
+		_, err := os.Stdin.Read(buf)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error reading input: ", err)
-			os.Exit(1)
+			return "", err
+		}
+		b := buf[0]
+
+		switch b {
+		case '\r', '\n':
+			os.Stdout.WriteString("\r\n")
+			return string(line_byte), nil
+		case '\t':
+			line := string(line_byte)
+			if !strings.Contains(line, " ") {
+				var matches []string
+				for _, b_name := range built_ins {
+					if strings.HasPrefix(b_name, line) {
+						matches = append(matches, b_name)
+					}
+				}
+
+				if len(matches) == 1 {
+					completion := matches[0][len(line):] + " "
+					os.Stdout.WriteString(completion)
+					line_byte = append(line_byte, completion...)
+				} else if len(matches) == 0 {
+					os.Stdout.WriteString("\x07")
+				}
+			}
+		case '\x7f', '\b':
+			if len(line_byte) > 0 {
+				line_byte = line_byte[:len(line_byte)-1]
+				os.Stdout.WriteString("\b \b")
+			}
+		case '\x1b':
+			seq := make([]byte, 2)
+			n, _ := os.Stdin.Read(seq)
+			if n == 2 && seq[0] == '[' {
+				switch seq[1] {
+				case 'A', 'B':
+					// ignore for now
+				case 'C', 'D':
+					// ignore for now
+				}
+			}
+		case '\x03':
+			os.Stdout.WriteString("\r\n")
+			return "", nil
+		default:
+			if b >= 32 && b <= 126 {
+				line_byte = append(line_byte, byte(b))
+			}
+			os.Stdout.Write(buf)
+		}
+	}
+
+}
+
+func main() {
+	for {
+		fmt.Print("$ ")
+		input, err := readLine()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		if len(input) == 0 {
+			continue
+
 		}
 
 		input = strings.TrimRight(input, "\r\n")
-		if len(input) == 0 {
-			continue
-		}
 
 		command := parseCommand(input)
 		stdout_writer, stderr_writer, cleanup, err := getOutputWriters(command)
