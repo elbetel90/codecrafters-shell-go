@@ -112,6 +112,82 @@ func handleTabCompletion(line_byte *[]byte, all_commands []string, last_was_tab 
 	return nil
 }
 
+func handleFileAndDirectoryCompletion(line_byte *[]byte, last_was_tab *bool) error {
+	line := string(*line_byte)
+
+	last_space_index := strings.LastIndex(line, " ")
+	path_token := line[last_space_index+1:]
+
+	search_dir := "."
+	prefix := path_token
+
+	if idx := strings.LastIndex(path_token, "/"); idx != -1 {
+		search_dir = path_token[:idx+1]
+		prefix = path_token[idx+1:]
+	}
+
+	entries, err := os.ReadDir(search_dir)
+	if err != nil {
+		os.Stdout.WriteString("\x07")
+		return nil
+	}
+
+	var matches []os.DirEntry
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), prefix) {
+			matches = append(matches, entry)
+		}
+	}
+
+	switch len(matches) {
+	case 0:
+		os.Stdout.WriteString("\x07")
+	case 1:
+		match := matches[0]
+		remaining := match.Name()[len(prefix):]
+		if match.IsDir() {
+			remaining += "/"
+		} else {
+			remaining += " "
+		}
+		os.Stdout.WriteString(remaining)
+		*line_byte = append(*line_byte, remaining...)
+	default:
+		var match_names []string
+		for _, m := range matches {
+			name := m.Name()
+			if m.IsDir() {
+				name += "/"
+			}
+			match_names = append(match_names, name)
+		}
+		lcp := utils.LongestCommandPrefix(match_names)
+		if len(lcp) > len(prefix) {
+			suffix := lcp[len(prefix):]
+			os.Stdout.WriteString(suffix)
+			*line_byte = append(*line_byte, []byte(suffix)...)
+		} else {
+			if !*last_was_tab {
+				os.Stdout.WriteString("\x07")
+				*last_was_tab = true
+			} else {
+				os.Stdout.WriteString("\r\n")
+				for i, name := range match_names {
+					os.Stdout.WriteString(name)
+					if i < len(match_names)-1 {
+						os.Stdout.WriteString("  ")
+					}
+				}
+				os.Stdout.WriteString("\r\n$ " + string(*line_byte))
+				*last_was_tab = false
+			}
+		}
+
+	}
+
+	return nil
+}
+
 func ReadLine(all_commands []string) (string, error) {
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
@@ -139,15 +215,20 @@ func ReadLine(all_commands []string) (string, error) {
 			return string(line_byte), nil
 		case '\t':
 			line := string(line_byte)
-			if len(line) > 0 && line[len(line)-1] == ' ' {
-				os.Stdout.WriteString("\x07")
-				continue
+			if !strings.Contains(line, " ") {
+				err := handleTabCompletion(&line_byte, all_commands, &last_was_tab)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
+					return "", err
+				}
+			} else {
+				err := handleFileAndDirectoryCompletion(&line_byte, &last_was_tab)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
+					return "", err
+				}
 			}
-			err := handleTabCompletion(&line_byte, all_commands, &last_was_tab)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				return "", err
-			}
+
 		case '\x7f', '\b':
 			if len(line_byte) > 0 {
 				line_byte = line_byte[:len(line_byte)-1]
