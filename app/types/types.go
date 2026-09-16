@@ -50,4 +50,5 @@ type CompleteCommandArgs string
 
 const (
 	CompleteCommandArgsP CompleteCommandArgs = "-p"
+	CompleteCommandArgsC CompleteCommandArgs = "-C"
 )

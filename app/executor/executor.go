@@ -62,18 +62,14 @@ func handleType(args []string) {
 func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Writer) {
 	args := command.Args
 
-	completion_registry["git"] = CommandCompletionSpec{
-		CommandName:   "'./'",
-		TargetCommand: "git",
-	}
-
 	if len(args) == 0 {
 		return
 	}
+
 	if args[0] == string(types.CompleteCommandArgsP) {
 		if len(args) == 1 {
 			for _, spec := range completion_registry {
-				fmt.Fprintln(stdout_writer, printSpecs(spec))
+				fmt.Fprintln(stdout_writer, printSpecs(command.Cmd, spec))
 			}
 		}
 
@@ -83,12 +79,22 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 			fmt.Fprintf(stderr_writer, "complete: %s: no completion specification\n", target_command)
 			return
 		}
-		fmt.Fprintln(stdout_writer, printSpecs(spec))
+		fmt.Fprintln(stdout_writer, printSpecs(command.Cmd, spec))
+	} else if args[0] == string(types.CompleteCommandArgsC) {
+		if len(args) == 1 || len(args) == 2 {
+			return
+		}
+		target := args[len(args)-1]
+		command_name := fmt.Sprintf("'%s'", args[len(args)-2])
+		completion_registry[target] = CommandCompletionSpec{
+			CommandName:   command_name,
+			TargetCommand: target,
+		}
 	}
 }
 
-func printSpecs(spec CommandCompletionSpec) string {
-	out := "complete"
+func printSpecs(cmd string, spec CommandCompletionSpec) string {
+	out := cmd
 	if spec.CommandName != "" {
 		out += " -C " + spec.CommandName
 	}
