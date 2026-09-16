@@ -3,11 +3,12 @@ package types
 type BuiltinCommand string
 
 const (
-	BuiltinCommandExit BuiltinCommand = "exit"
-	BuiltinCommandEcho BuiltinCommand = "echo"
-	BuiltinCommandType BuiltinCommand = "type"
-	BuiltinCommandPwd  BuiltinCommand = "pwd"
-	BuiltinCommandCd   BuiltinCommand = "cd"
+	BuiltinCommandExit     BuiltinCommand = "exit"
+	BuiltinCommandEcho     BuiltinCommand = "echo"
+	BuiltinCommandType     BuiltinCommand = "type"
+	BuiltinCommandPwd      BuiltinCommand = "pwd"
+	BuiltinCommandCd       BuiltinCommand = "cd"
+	BuiltinCommandComplete BuiltinCommand = "complete"
 )
 
 var Built_ins = []string{
@@ -16,6 +17,7 @@ var Built_ins = []string{
 	string(BuiltinCommandType),
 	string(BuiltinCommandPwd),
 	string(BuiltinCommandCd),
+	string(BuiltinCommandComplete),
 }
 
 type StateTransition int
