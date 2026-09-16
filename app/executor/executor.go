@@ -13,6 +13,13 @@ import (
 	"github.com/codecrafters-io/shell-starter-go/app/types"
 )
 
+type CommandCompletionSpec struct {
+	CommandName   string // -C flag
+	TargetCommand string // target command
+}
+
+var completion_registry = make(map[string]CommandCompletionSpec)
+
 func handlePwd() {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -52,6 +59,44 @@ func handleType(args []string) {
 	}
 }
 
+func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Writer) {
+	args := command.Args
+
+	completion_registry["git"] = CommandCompletionSpec{
+		CommandName:   "'./'",
+		TargetCommand: "git",
+	}
+
+	if len(args) == 0 {
+		return
+	}
+	if args[0] == string(types.CompleteCommandArgsP) {
+		if len(args) == 1 {
+			for _, spec := range completion_registry {
+				fmt.Fprintln(stdout_writer, printSpecs(spec))
+			}
+		}
+
+		target_command := args[1]
+		spec, exists := completion_registry[target_command]
+		if !exists {
+			fmt.Fprintf(stderr_writer, "complete: %s: no completion specification\n", target_command)
+			return
+		}
+		fmt.Fprintln(stdout_writer, printSpecs(spec))
+	}
+}
+
+func printSpecs(spec CommandCompletionSpec) string {
+	out := "complete"
+	if spec.CommandName != "" {
+		out += " -C " + spec.CommandName
+	}
+	out += " " + spec.TargetCommand
+
+	return out
+}
+
 // execute commands
 func ExecuteCommands(input string, command *parser.Command, stdout_writer, stderr_writer io.Writer) {
 	if command == nil || command.Cmd == "" {
@@ -68,6 +113,8 @@ func ExecuteCommands(input string, command *parser.Command, stdout_writer, stder
 		handleCd(command.Args)
 	case string(types.BuiltinCommandType):
 		handleType(command.Args)
+	case string(types.BuiltinCommandComplete):
+		handleComplete(command, stdout_writer, stderr_writer)
 	default:
 		if _, err := exec.LookPath(command.Cmd); err == nil {
 			execCmd := exec.Command(command.Cmd, command.Args...)

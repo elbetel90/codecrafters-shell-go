@@ -45,3 +45,9 @@ type EnvVar string
 const (
 	EnvVarPath EnvVar = "PATH"
 )
+
+type CompleteCommandArgs string
+
+const (
+	CompleteCommandArgsP CompleteCommandArgs = "-p"
+)
