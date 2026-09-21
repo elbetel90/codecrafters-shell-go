@@ -260,20 +260,29 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte, last_wa
 		os.Stdout.WriteString(suffix)
 		*line_byte = append(*line_byte, []byte(suffix)...)
 	default:
-		if !*last_was_tab {
-			os.Stdout.WriteString("\x07")
-			*last_was_tab = true
+		lcp := utils.LongestCommandPrefix(filtered_out)
+		current_len := len(current_word)
+		if len(lcp) > current_len {
+			suffix := lcp[current_len:]
+			os.Stdout.WriteString(suffix)
+			*line_byte = append(*line_byte, []byte(suffix)...)
 		} else {
-			os.Stdout.WriteString("\r\n")
-			for i, name := range filtered_out {
-				os.Stdout.WriteString(name)
-				if i < len(filtered_out)-1 {
-					os.Stdout.WriteString("  ")
+			if !*last_was_tab {
+				os.Stdout.WriteString("\x07")
+				*last_was_tab = true
+			} else {
+				os.Stdout.WriteString("\r\n")
+				for i, name := range filtered_out {
+					os.Stdout.WriteString(name)
+					if i < len(filtered_out)-1 {
+						os.Stdout.WriteString("  ")
+					}
 				}
+				os.Stdout.WriteString("\r\n$ " + string(*line_byte))
+				*last_was_tab = false
 			}
-			os.Stdout.WriteString("\r\n$ " + string(*line_byte))
-			*last_was_tab = false
 		}
+
 	}
 
 	return nil
