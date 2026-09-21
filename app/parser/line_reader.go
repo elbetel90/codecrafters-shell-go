@@ -190,10 +190,39 @@ func handleFileAndDirectoryCompletion(line_byte *[]byte, last_was_tab *bool) err
 }
 
 func handleProgrammableCompletion(script_path string, line_byte *[]byte) error {
-	cmd := exec.Command(script_path)
+	line := string(*line_byte)
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		os.Stdout.WriteString("\x07")
+		return nil
+	}
+
+	cmd_name := fields[0]
+	var current_word string
+	var prev_word string
+
+	ends_with_space := strings.HasSuffix(line, " ")
+	if ends_with_space {
+		current_word = ""
+		if len(fields) > 1 {
+			prev_word = fields[len(fields)-1]
+		} else {
+			prev_word = ""
+		}
+	} else {
+		current_word = fields[len(fields)-1]
+		if len(fields) > 2 {
+			prev_word = fields[len(fields)-1]
+		} else {
+			prev_word = ""
+		}
+	}
+
+	cmd := exec.Command(script_path, cmd_name, current_word, prev_word)
 	out, err := cmd.Output()
 	if err != nil {
-		cmd = exec.Command("/bin/bash", "-c", script_path)
+		exec_str := fmt.Sprintf("%s %s %s %s", script_path, cmd_name, current_word, prev_word)
+		cmd = exec.Command("/bin/bash", "-c", exec_str)
 		out, err = cmd.Output()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\nExec error: %v\n", err)
@@ -207,7 +236,6 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte) error {
 		return nil
 	}
 
-	line := string(*line_byte)
 	last_space_idx := strings.LastIndex(line, " ")
 	typed_arg := ""
 	if last_space_idx != -1 {
@@ -253,6 +281,7 @@ func ReadLine(all_commands []string) (string, error) {
 		case '\t':
 			line := string(line_byte)
 			if !strings.Contains(line, " ") {
+				fmt.Println("called 1")
 				err := handleTabCompletion(&line_byte, all_commands, &last_was_tab)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
