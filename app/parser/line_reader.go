@@ -219,9 +219,21 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte) error {
 	}
 
 	cmd := exec.Command(script_path, cmd_name, current_word, prev_word)
+	comp_line_env := fmt.Sprintf("COMP_LINE=%s", line)
+	comp_point_env := fmt.Sprintf("COMP_POINT=%d", len(*line_byte))
+	cmd.Env = append(
+		os.Environ(),
+		comp_line_env,
+		comp_point_env,
+	)
 	out, err := cmd.Output()
 	if err != nil {
 		cmd = exec.Command("/bin/bash", script_path, cmd_name, current_word, prev_word)
+		cmd.Env = append(
+			os.Environ(),
+			comp_line_env,
+			comp_point_env,
+		)
 		out, err = cmd.Output()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\nExec error: %v\n", err)
