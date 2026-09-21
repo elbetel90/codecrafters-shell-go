@@ -252,23 +252,28 @@ func ReadLine(all_commands []string) (string, error) {
 					return "", err
 				}
 			} else {
-				cmd_name := strings.Split(line, " ")[0]
-				completion_registry, exists := types.CompletionRegistry[cmd_name]
 
-				if exists && completion_registry.CommandName != "" {
-					// programmable completion goes here
-					err := handleProgrammableCompletion(completion_registry.CommandName, &line_byte)
-					if err != nil {
-						fmt.Fprintln(os.Stderr, err)
-						return "", err
-					}
-				} else {
-					err := handleFileAndDirectoryCompletion(&line_byte, &last_was_tab)
-					if err != nil {
-						fmt.Fprintln(os.Stderr, err)
-						return "", err
+				fields := strings.Fields(line)
+				if len(fields) > 0 {
+					cmd_name := fields[0]
+					completion_registry, exists := types.CompletionRegistry[cmd_name]
+
+					if exists && completion_registry.CommandName != "" {
+						// programmable completion goes here
+						err := handleProgrammableCompletion(completion_registry.CommandName, &line_byte)
+						if err != nil {
+							fmt.Fprintln(os.Stderr, err)
+							return "", err
+						}
+						continue
 					}
 				}
+				err := handleFileAndDirectoryCompletion(&line_byte, &last_was_tab)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
+					return "", err
+				}
+
 			}
 
 		case '\x7f', '\b':
