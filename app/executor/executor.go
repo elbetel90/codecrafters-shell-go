@@ -89,7 +89,7 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 func printSpecs(cmd string, spec types.CommandCompletionSpec) string {
 	out := cmd
 	if spec.CommandName != "" {
-		out += " -C " + spec.CommandName
+		out += " -C '" + spec.CommandName + "'"
 	}
 	out += " " + spec.TargetCommand
 
