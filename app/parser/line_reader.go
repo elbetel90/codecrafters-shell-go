@@ -193,8 +193,12 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte) error {
 	cmd := exec.Command(script_path)
 	out, err := cmd.Output()
 	if err != nil {
-		os.Stdout.WriteString("\x07")
-		return nil
+		cmd = exec.Command("/bin/bash", "-c", script_path)
+		out, err = cmd.Output()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "\nExec error: %v\n", err)
+			os.Stdout.WriteString("\x07")
+		}
 	}
 
 	candidate := strings.TrimSpace(string(out))
@@ -205,7 +209,10 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte) error {
 
 	line := string(*line_byte)
 	last_space_idx := strings.LastIndex(line, " ")
-	typed_arg := line[last_space_idx+1:]
+	typed_arg := ""
+	if last_space_idx != -1 {
+		typed_arg = line[last_space_idx+1:]
+	}
 
 	if strings.HasPrefix(candidate, typed_arg) {
 		suffix := candidate[len(typed_arg):] + " "
@@ -252,7 +259,6 @@ func ReadLine(all_commands []string) (string, error) {
 					return "", err
 				}
 			} else {
-
 				fields := strings.Fields(line)
 				if len(fields) > 0 {
 					cmd_name := fields[0]
