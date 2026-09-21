@@ -221,7 +221,7 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte) error {
 	cmd := exec.Command(script_path, cmd_name, current_word, prev_word)
 	out, err := cmd.Output()
 	if err != nil {
-		cmd = exec.Command("/bin/bash", "-c", script_path, cmd_name, current_word, prev_word)
+		cmd = exec.Command("/bin/bash", script_path, cmd_name, current_word, prev_word)
 		out, err = cmd.Output()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\nExec error: %v\n", err)
@@ -274,7 +274,6 @@ func ReadLine(all_commands []string) (string, error) {
 		case '\t':
 			line := string(line_byte)
 			if !strings.Contains(line, " ") {
-				fmt.Println("called 1")
 				err := handleTabCompletion(&line_byte, all_commands, &last_was_tab)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)

@@ -78,7 +78,7 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 			return
 		}
 		target := args[len(args)-1]
-		command_name := fmt.Sprintf("'%s'", args[len(args)-2])
+		command_name := args[len(args)-2]
 		types.CompletionRegistry[target] = types.CommandCompletionSpec{
 			CommandName:   command_name,
 			TargetCommand: target,
