@@ -83,6 +83,12 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 			CommandName:   command_name,
 			TargetCommand: target,
 		}
+	} else if args[0] == string(types.CompleteCommandArgsR) {
+		if len(args) < 2 {
+			return
+		}
+		target := args[1]
+		delete(types.CompletionRegistry, target)
 	}
 }
 

@@ -51,6 +51,7 @@ type CompleteCommandArgs string
 const (
 	CompleteCommandArgsP CompleteCommandArgs = "-p"
 	CompleteCommandArgsC CompleteCommandArgs = "-C"
+	CompleteCommandArgsR CompleteCommandArgs = "-r"
 )
 
 type CommandCompletionSpec struct {
