@@ -52,3 +52,10 @@ const (
 	CompleteCommandArgsP CompleteCommandArgs = "-p"
 	CompleteCommandArgsC CompleteCommandArgs = "-C"
 )
+
+type CommandCompletionSpec struct {
+	CommandName   string // -C flag
+	TargetCommand string // target command
+}
+
+var CompletionRegistry = make(map[string]CommandCompletionSpec)

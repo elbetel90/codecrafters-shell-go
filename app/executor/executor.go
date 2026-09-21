@@ -13,13 +13,6 @@ import (
 	"github.com/codecrafters-io/shell-starter-go/app/types"
 )
 
-type CommandCompletionSpec struct {
-	CommandName   string // -C flag
-	TargetCommand string // target command
-}
-
-var completion_registry = make(map[string]CommandCompletionSpec)
-
 func handlePwd() {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -68,13 +61,13 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 
 	if args[0] == string(types.CompleteCommandArgsP) {
 		if len(args) == 1 {
-			for _, spec := range completion_registry {
+			for _, spec := range types.CompletionRegistry {
 				fmt.Fprintln(stdout_writer, printSpecs(command.Cmd, spec))
 			}
 		}
 
 		target_command := args[1]
-		spec, exists := completion_registry[target_command]
+		spec, exists := types.CompletionRegistry[target_command]
 		if !exists {
 			fmt.Fprintf(stderr_writer, "complete: %s: no completion specification\n", target_command)
 			return
@@ -86,14 +79,14 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 		}
 		target := args[len(args)-1]
 		command_name := fmt.Sprintf("'%s'", args[len(args)-2])
-		completion_registry[target] = CommandCompletionSpec{
+		types.CompletionRegistry[target] = types.CommandCompletionSpec{
 			CommandName:   command_name,
 			TargetCommand: target,
 		}
 	}
 }
 
-func printSpecs(cmd string, spec CommandCompletionSpec) string {
+func printSpecs(cmd string, spec types.CommandCompletionSpec) string {
 	out := cmd
 	if spec.CommandName != "" {
 		out += " -C " + spec.CommandName

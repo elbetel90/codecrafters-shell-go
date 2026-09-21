@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -188,6 +189,35 @@ func handleFileAndDirectoryCompletion(line_byte *[]byte, last_was_tab *bool) err
 	return nil
 }
 
+func handleProgrammableCompletion(script_path string, line_byte *[]byte) error {
+	cmd := exec.Command(script_path)
+	out, err := cmd.Output()
+	if err != nil {
+		os.Stdout.WriteString("\x07")
+		return nil
+	}
+
+	candidate := strings.TrimSpace(string(out))
+	if candidate == "" {
+		os.Stdout.WriteString("\x07")
+		return nil
+	}
+
+	line := string(*line_byte)
+	last_space_idx := strings.LastIndex(line, " ")
+	typed_arg := line[last_space_idx+1:]
+
+	if strings.HasPrefix(candidate, typed_arg) {
+		suffix := candidate[len(typed_arg):] + " "
+		os.Stdout.WriteString(suffix)
+		*line_byte = append(*line_byte, []byte(suffix)...)
+	} else {
+		os.Stdout.WriteString("\x07")
+	}
+
+	return nil
+}
+
 func ReadLine(all_commands []string) (string, error) {
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
@@ -222,10 +252,22 @@ func ReadLine(all_commands []string) (string, error) {
 					return "", err
 				}
 			} else {
-				err := handleFileAndDirectoryCompletion(&line_byte, &last_was_tab)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, err)
-					return "", err
+				cmd_name := strings.Split(line, " ")[0]
+				completion_registry, exists := types.CompletionRegistry[cmd_name]
+
+				if exists && completion_registry.CommandName != "" {
+					// programmable completion goes here
+					err := handleProgrammableCompletion(completion_registry.CommandName, &line_byte)
+					if err != nil {
+						fmt.Fprintln(os.Stderr, err)
+						return "", err
+					}
+				} else {
+					err := handleFileAndDirectoryCompletion(&line_byte, &last_was_tab)
+					if err != nil {
+						fmt.Fprintln(os.Stderr, err)
+						return "", err
+					}
 				}
 			}
 
