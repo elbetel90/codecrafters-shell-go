@@ -211,8 +211,8 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte) error {
 		}
 	} else {
 		current_word = fields[len(fields)-1]
-		if len(fields) > 2 {
-			prev_word = fields[len(fields)-1]
+		if len(fields) > 1 {
+			prev_word = fields[len(fields)-2]
 		} else {
 			prev_word = ""
 		}
@@ -221,8 +221,7 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte) error {
 	cmd := exec.Command(script_path, cmd_name, current_word, prev_word)
 	out, err := cmd.Output()
 	if err != nil {
-		exec_str := fmt.Sprintf("%s %s %s %s", script_path, cmd_name, current_word, prev_word)
-		cmd = exec.Command("/bin/bash", "-c", exec_str)
+		cmd = exec.Command("/bin/bash", "-c", script_path, cmd_name, current_word, prev_word)
 		out, err = cmd.Output()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\nExec error: %v\n", err)
@@ -236,14 +235,8 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte) error {
 		return nil
 	}
 
-	last_space_idx := strings.LastIndex(line, " ")
-	typed_arg := ""
-	if last_space_idx != -1 {
-		typed_arg = line[last_space_idx+1:]
-	}
-
-	if strings.HasPrefix(candidate, typed_arg) {
-		suffix := candidate[len(typed_arg):] + " "
+	if strings.HasPrefix(candidate, current_word) {
+		suffix := candidate[len(current_word):] + " "
 		os.Stdout.WriteString(suffix)
 		*line_byte = append(*line_byte, []byte(suffix)...)
 	} else {
