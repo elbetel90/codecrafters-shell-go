@@ -211,7 +211,7 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte, last_wa
 		}
 	} else {
 		current_word = fields[len(fields)-1]
-		if len(fields) > 2 {
+		if len(fields) > 1 {
 			prev_word = fields[len(fields)-2]
 		} else {
 			prev_word = ""
