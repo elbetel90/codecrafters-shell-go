@@ -236,7 +236,6 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte, last_wa
 		)
 		out, err = cmd.Output()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "\nExec error: %v\n", err)
 			os.Stdout.WriteString("\x07")
 		}
 	}
