@@ -189,7 +189,7 @@ func handleFileAndDirectoryCompletion(line_byte *[]byte, last_was_tab *bool) err
 	return nil
 }
 
-func handleProgrammableCompletion(script_path string, line_byte *[]byte) error {
+func handleProgrammableCompletion(script_path string, line_byte *[]byte, last_was_tab *bool) error {
 	line := string(*line_byte)
 	fields := strings.Fields(line)
 	if len(fields) == 0 {
@@ -241,18 +241,40 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte) error {
 		}
 	}
 
+	splitted_out := strings.Split(string(out), "\n")
+	filtered_out := splitted_out[:0]
+	for _, out := range splitted_out {
+		if out != "" && out != "\n" {
+			filtered_out = append(filtered_out, out)
+		}
+	}
+	sort.Strings(filtered_out)
+
 	candidate := strings.TrimSpace(string(out))
-	if candidate == "" {
+
+	switch len(filtered_out) {
+	case 0:
 		os.Stdout.WriteString("\x07")
 		return nil
-	}
-
-	if strings.HasPrefix(candidate, current_word) {
+	case 1:
 		suffix := candidate[len(current_word):] + " "
 		os.Stdout.WriteString(suffix)
 		*line_byte = append(*line_byte, []byte(suffix)...)
-	} else {
-		os.Stdout.WriteString("\x07")
+	default:
+		if !*last_was_tab {
+			os.Stdout.WriteString("\x07")
+			*last_was_tab = true
+		} else {
+			os.Stdout.WriteString("\r\n")
+			for i, name := range filtered_out {
+				os.Stdout.WriteString(name)
+				if i < len(filtered_out)-1 {
+					os.Stdout.WriteString("  ")
+				}
+			}
+			os.Stdout.WriteString("\r\n$ " + string(*line_byte))
+			*last_was_tab = false
+		}
 	}
 
 	return nil
@@ -299,7 +321,7 @@ func ReadLine(all_commands []string) (string, error) {
 
 					if exists && completion_registry.CommandName != "" {
 						// programmable completion goes here
-						err := handleProgrammableCompletion(completion_registry.CommandName, &line_byte)
+						err := handleProgrammableCompletion(completion_registry.CommandName, &line_byte, &last_was_tab)
 						if err != nil {
 							fmt.Fprintln(os.Stderr, err)
 							return "", err
