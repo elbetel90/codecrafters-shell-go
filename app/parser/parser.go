@@ -32,7 +32,11 @@ type Command struct {
 	AppendStderr bool
 }
 
-func ParseCommand(input string) *Command {
+func NewCommand() *Command {
+	return &Command{}
+}
+
+func (c *Command) ParseCommand(input string) *Command {
 	var sb strings.Builder
 
 	var tokens []string

@@ -30,14 +30,17 @@ func main() {
 			continue
 
 		}
-		command := parser.ParseCommand(input)
+		c := parser.NewCommand()
+		command := c.ParseCommand(input)
 		stdout_writer, stderr_writer, cleanup, err := executor.GetOutputWriters(command)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
 
-		executor.ExecuteCommands(input, command, stdout_writer, stderr_writer)
+		command_executor := executor.NewCommandExecutor(input, command, stdout_writer, stderr_writer)
+
+		command_executor.ExecuteCommands(input, command, stdout_writer, stderr_writer)
 
 		cleanup()
 	}

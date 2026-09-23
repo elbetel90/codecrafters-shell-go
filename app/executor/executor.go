@@ -15,7 +15,64 @@ import (
 	"github.com/codecrafters-io/shell-starter-go/app/types"
 )
 
-func handlePwd() {
+type CommandExecutor struct {
+	Input        string
+	Commmand     *parser.Command
+	StdoutWriter io.Writer
+	StderrWriter io.Writer
+}
+
+func NewCommandExecutor(input string, command *parser.Command, stdout_writer, stderr_writer io.Writer) *CommandExecutor {
+	return &CommandExecutor{
+		input,
+		command,
+		stdout_writer,
+		stdout_writer,
+	}
+}
+
+// execute commands
+func (ce *CommandExecutor) ExecuteCommands(input string, command *parser.Command, stdout_writer, stderr_writer io.Writer) {
+	if command == nil || command.Cmd == "" {
+		return
+	}
+	switch command.Cmd {
+	case string(types.BuiltinCommandExit):
+		os.Exit(0)
+	case string(types.BuiltinCommandEcho):
+		fmt.Fprintln(stdout_writer, strings.Join(command.Args, " "))
+	case string(types.BuiltinCommandPwd):
+		ce.handlePwd()
+	case string(types.BuiltinCommandCd):
+		ce.handleCd(command.Args)
+	case string(types.BuiltinCommandType):
+		ce.handleType(command.Args)
+	case string(types.BuiltinCommandComplete):
+		ce.handleComplete(command, stdout_writer, stderr_writer)
+	case string(types.BuiltinCommandJobs):
+		ce.handleJobs(stdout_writer)
+	default:
+		if len(command.Args) > 0 && command.Args[len(command.Args)-1] == "&" {
+			job_number, pid, err := ce.runBackgroudJobs(command)
+			if err != nil {
+				fmt.Fprintln(stderr_writer, err)
+				return
+			}
+			fmt.Fprintln(stdout_writer, ce.printJobDetail(job_number, pid))
+		} else {
+			if _, err := exec.LookPath(command.Cmd); err == nil {
+				execCmd := exec.Command(command.Cmd, command.Args...)
+				execCmd.Stdout = stdout_writer
+				execCmd.Stderr = stderr_writer
+				execCmd.Run()
+			} else {
+				fmt.Println(input + ": command not found")
+			}
+		}
+	}
+}
+
+func (ce *CommandExecutor) handlePwd() {
 	dir, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "pwd error", err)
@@ -24,7 +81,7 @@ func handlePwd() {
 	fmt.Println(dir)
 }
 
-func handleCd(args []string) {
+func (ce *CommandExecutor) handleCd(args []string) {
 	arg := args[0]
 	if arg == "~" || strings.HasPrefix(arg, "~/") {
 		homeDir, err := os.UserHomeDir()
@@ -42,7 +99,7 @@ func handleCd(args []string) {
 	}
 }
 
-func handleType(args []string) {
+func (ce *CommandExecutor) handleType(args []string) {
 	if slices.Contains(types.Built_ins, args[0]) {
 		fmt.Println(args[0] + " is a shell builtin")
 	} else if path, err := exec.LookPath(args[0]); err == nil {
@@ -54,7 +111,7 @@ func handleType(args []string) {
 	}
 }
 
-func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Writer) {
+func (ce *CommandExecutor) handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Writer) {
 	args := command.Args
 
 	if len(args) == 0 {
@@ -64,7 +121,7 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 	if args[0] == string(types.CompleteCommandArgsP) {
 		if len(args) == 1 {
 			for _, spec := range types.CompletionRegistry {
-				fmt.Fprintln(stdout_writer, printSpecs(command.Cmd, spec))
+				fmt.Fprintln(stdout_writer, ce.printSpecs(command.Cmd, spec))
 			}
 		}
 
@@ -74,7 +131,7 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 			fmt.Fprintf(stderr_writer, "complete: %s: no completion specification\n", target_command)
 			return
 		}
-		fmt.Fprintln(stdout_writer, printSpecs(command.Cmd, spec))
+		fmt.Fprintln(stdout_writer, ce.printSpecs(command.Cmd, spec))
 	} else if args[0] == string(types.CompleteCommandArgsC) {
 		if len(args) == 1 || len(args) == 2 {
 			return
@@ -94,7 +151,7 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 	}
 }
 
-func handleJobs(stdout_writer io.Writer) {
+func (ce *CommandExecutor) handleJobs(stdout_writer io.Writer) {
 	slices.SortFunc(types.Jobs, func(a, b types.Job) int {
 		return cmp.Compare(a.JobNumber, b.JobNumber)
 	})
@@ -117,7 +174,7 @@ func handleJobs(stdout_writer io.Writer) {
 	types.Jobs = remaining
 }
 
-func runBackgroudJobs(command *parser.Command) (int, int, error) {
+func (ce *CommandExecutor) runBackgroudJobs(command *parser.Command) (int, int, error) {
 	if len(command.Args) < 1 {
 		return 0, 0, nil
 	}
@@ -133,7 +190,7 @@ func runBackgroudJobs(command *parser.Command) (int, int, error) {
 	args_without_amp := command.Args[:len(command.Args)-1]
 
 	job := types.Job{
-		JobNumber: nextJobNumber(),
+		JobNumber: ce.nextJobNumber(),
 		Pid:       cmd.Process.Pid,
 		Command:   command.Cmd + " " + strings.Join(args_without_amp, " "),
 		Status:    string(types.JobStatusRunning),
@@ -144,7 +201,7 @@ func runBackgroudJobs(command *parser.Command) (int, int, error) {
 	return job.JobNumber, cmd.Process.Pid, nil
 }
 
-func nextJobNumber() int {
+func (ce *CommandExecutor) nextJobNumber() int {
 	if len(types.Jobs) == 0 {
 		return 1
 	}
@@ -157,7 +214,7 @@ func nextJobNumber() int {
 	return max + 1
 }
 
-func printSpecs(cmd string, spec types.CommandCompletionSpec) string {
+func (ce *CommandExecutor) printSpecs(cmd string, spec types.CommandCompletionSpec) string {
 	out := cmd
 	if spec.CommandName != "" {
 		out += " -C '" + spec.CommandName + "'"
@@ -167,7 +224,7 @@ func printSpecs(cmd string, spec types.CommandCompletionSpec) string {
 	return out
 }
 
-func printJobDetail(job_number, pid int) string {
+func (ce *CommandExecutor) printJobDetail(job_number, pid int) string {
 	out := fmt.Sprintf("[%d] %d", job_number, pid)
 	return out
 }
@@ -222,45 +279,4 @@ func ReapJobs(stdout_writer io.Writer) {
 
 	types.Jobs = remaining_jobs
 
-}
-
-// execute commands
-func ExecuteCommands(input string, command *parser.Command, stdout_writer, stderr_writer io.Writer) {
-	if command == nil || command.Cmd == "" {
-		return
-	}
-	switch command.Cmd {
-	case string(types.BuiltinCommandExit):
-		os.Exit(0)
-	case string(types.BuiltinCommandEcho):
-		fmt.Fprintln(stdout_writer, strings.Join(command.Args, " "))
-	case string(types.BuiltinCommandPwd):
-		handlePwd()
-	case string(types.BuiltinCommandCd):
-		handleCd(command.Args)
-	case string(types.BuiltinCommandType):
-		handleType(command.Args)
-	case string(types.BuiltinCommandComplete):
-		handleComplete(command, stdout_writer, stderr_writer)
-	case string(types.BuiltinCommandJobs):
-		handleJobs(stdout_writer)
-	default:
-		if len(command.Args) > 0 && command.Args[len(command.Args)-1] == "&" {
-			job_number, pid, err := runBackgroudJobs(command)
-			if err != nil {
-				fmt.Fprintln(stderr_writer, err)
-				return
-			}
-			fmt.Fprintln(stdout_writer, printJobDetail(job_number, pid))
-		} else {
-			if _, err := exec.LookPath(command.Cmd); err == nil {
-				execCmd := exec.Command(command.Cmd, command.Args...)
-				execCmd.Stdout = stdout_writer
-				execCmd.Stderr = stderr_writer
-				execCmd.Run()
-			} else {
-				fmt.Println(input + ": command not found")
-			}
-		}
-	}
 }
