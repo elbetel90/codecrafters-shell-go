@@ -13,13 +13,15 @@ import (
 var _ = fmt.Print
 
 func main() {
-	all_commands := parser.GetAllCommands()
+	c := parser.NewCommand()
+
+	all_commands := c.GetAllCommands()
 
 	for {
 		executor.ReapJobs(os.Stdout)
 
 		fmt.Print("$ ")
-		input, err := parser.ReadLine(all_commands)
+		input, err := c.ReadLine(all_commands)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
@@ -30,7 +32,6 @@ func main() {
 			continue
 
 		}
-		c := parser.NewCommand()
 		command := c.ParseCommand(input)
 		stdout_writer, stderr_writer, cleanup, err := executor.GetOutputWriters(command)
 		if err != nil {

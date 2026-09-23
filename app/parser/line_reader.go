@@ -14,7 +14,7 @@ import (
 	"golang.org/x/term"
 )
 
-func GetAllCommands() []string {
+func (c *Command) GetAllCommands() []string {
 	var commands []string
 	seen := make(map[string]bool)
 
@@ -57,7 +57,7 @@ func GetAllCommands() []string {
 	return commands
 }
 
-func handleTabCompletion(line_byte *[]byte, all_commands []string, last_was_tab *bool) error {
+func (c *Command) handleTabCompletion(line_byte *[]byte, all_commands []string, last_was_tab *bool) error {
 	line := string(*line_byte)
 
 	if !strings.Contains(line, " ") {
@@ -113,7 +113,7 @@ func handleTabCompletion(line_byte *[]byte, all_commands []string, last_was_tab 
 	return nil
 }
 
-func handleFileAndDirectoryCompletion(line_byte *[]byte, last_was_tab *bool) error {
+func (c *Command) handleFileAndDirectoryCompletion(line_byte *[]byte, last_was_tab *bool) error {
 	line := string(*line_byte)
 
 	last_space_index := strings.LastIndex(line, " ")
@@ -189,7 +189,7 @@ func handleFileAndDirectoryCompletion(line_byte *[]byte, last_was_tab *bool) err
 	return nil
 }
 
-func handleProgrammableCompletion(script_path string, line_byte *[]byte, last_was_tab *bool) error {
+func (c *Command) handleProgrammableCompletion(script_path string, line_byte *[]byte, last_was_tab *bool) error {
 	line := string(*line_byte)
 	fields := strings.Fields(line)
 	if len(fields) == 0 {
@@ -288,7 +288,7 @@ func handleProgrammableCompletion(script_path string, line_byte *[]byte, last_wa
 	return nil
 }
 
-func ReadLine(all_commands []string) (string, error) {
+func (c *Command) ReadLine(all_commands []string) (string, error) {
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
 		return "", err
@@ -316,7 +316,7 @@ func ReadLine(all_commands []string) (string, error) {
 		case '\t':
 			line := string(line_byte)
 			if !strings.Contains(line, " ") {
-				err := handleTabCompletion(&line_byte, all_commands, &last_was_tab)
+				err := c.handleTabCompletion(&line_byte, all_commands, &last_was_tab)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
 					return "", err
@@ -329,7 +329,7 @@ func ReadLine(all_commands []string) (string, error) {
 
 					if exists && completion_registry.CommandName != "" {
 						// programmable completion goes here
-						err := handleProgrammableCompletion(completion_registry.CommandName, &line_byte, &last_was_tab)
+						err := c.handleProgrammableCompletion(completion_registry.CommandName, &line_byte, &last_was_tab)
 						if err != nil {
 							fmt.Fprintln(os.Stderr, err)
 							return "", err
@@ -337,7 +337,7 @@ func ReadLine(all_commands []string) (string, error) {
 						continue
 					}
 				}
-				err := handleFileAndDirectoryCompletion(&line_byte, &last_was_tab)
+				err := c.handleFileAndDirectoryCompletion(&line_byte, &last_was_tab)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
 					return "", err
