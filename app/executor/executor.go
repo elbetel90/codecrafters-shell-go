@@ -120,6 +120,8 @@ func ExecuteCommands(input string, command *parser.Command, stdout_writer, stder
 		handleType(command.Args)
 	case string(types.BuiltinCommandComplete):
 		handleComplete(command, stdout_writer, stderr_writer)
+	case string(types.BuiltinCommandJobs):
+		os.Stdout.WriteString("\x07")
 	default:
 		if _, err := exec.LookPath(command.Cmd); err == nil {
 			execCmd := exec.Command(command.Cmd, command.Args...)

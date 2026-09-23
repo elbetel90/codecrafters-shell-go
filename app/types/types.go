@@ -9,6 +9,7 @@ const (
 	BuiltinCommandPwd      BuiltinCommand = "pwd"
 	BuiltinCommandCd       BuiltinCommand = "cd"
 	BuiltinCommandComplete BuiltinCommand = "complete"
+	BuiltinCommandJobs     BuiltinCommand = "jobs"
 )
 
 var Built_ins = []string{
@@ -18,6 +19,7 @@ var Built_ins = []string{
 	string(BuiltinCommandPwd),
 	string(BuiltinCommandCd),
 	string(BuiltinCommandComplete),
+	string(BuiltinCommandJobs),
 }
 
 type StateTransition int
