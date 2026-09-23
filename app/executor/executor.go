@@ -92,6 +92,19 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 	}
 }
 
+func runBackgroudJobs(command *parser.Command) (int, int, error) {
+	if len(command.Args) < 1 {
+		return 0, 0, nil
+	}
+	cmd := exec.Command(command.Cmd, command.Args[:len(command.Args)-1]...)
+	err := cmd.Start()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return 1, cmd.Process.Pid, nil
+}
+
 func printSpecs(cmd string, spec types.CommandCompletionSpec) string {
 	out := cmd
 	if spec.CommandName != "" {
@@ -99,6 +112,11 @@ func printSpecs(cmd string, spec types.CommandCompletionSpec) string {
 	}
 	out += " " + spec.TargetCommand
 
+	return out
+}
+
+func printJobDetail(job_number, pid int) string {
+	out := fmt.Sprintf("[%d] %d", job_number, pid)
 	return out
 }
 
@@ -123,13 +141,22 @@ func ExecuteCommands(input string, command *parser.Command, stdout_writer, stder
 	case string(types.BuiltinCommandJobs):
 		os.Stdout.WriteString("\x07")
 	default:
-		if _, err := exec.LookPath(command.Cmd); err == nil {
-			execCmd := exec.Command(command.Cmd, command.Args...)
-			execCmd.Stdout = stdout_writer
-			execCmd.Stderr = stderr_writer
-			execCmd.Run()
+		if len(command.Args) > 0 && command.Args[len(command.Args)-1] == "&" {
+			job_number, pid, err := runBackgroudJobs(command)
+			if err != nil {
+				fmt.Fprintln(stderr_writer, err)
+				return
+			}
+			fmt.Fprintln(stdout_writer, printJobDetail(job_number, pid))
 		} else {
-			fmt.Println(input + ": command not found")
+			if _, err := exec.LookPath(command.Cmd); err == nil {
+				execCmd := exec.Command(command.Cmd, command.Args...)
+				execCmd.Stdout = stdout_writer
+				execCmd.Stderr = stderr_writer
+				execCmd.Run()
+			} else {
+				fmt.Println(input + ": command not found")
+			}
 		}
 	}
 }
