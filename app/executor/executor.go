@@ -133,16 +133,28 @@ func runBackgroudJobs(command *parser.Command) (int, int, error) {
 	args_without_amp := command.Args[:len(command.Args)-1]
 
 	job := types.Job{
-		JobNumber: types.NextJobNumber,
+		JobNumber: nextJobNumber(),
 		Pid:       cmd.Process.Pid,
 		Command:   command.Cmd + " " + strings.Join(args_without_amp, " "),
 		Status:    string(types.JobStatusRunning),
 	}
-	types.NextJobNumber++
 
 	types.Jobs = append(types.Jobs, job)
 
 	return job.JobNumber, cmd.Process.Pid, nil
+}
+
+func nextJobNumber() int {
+	if len(types.Jobs) == 0 {
+		return 1
+	}
+	max := 0
+	for _, job := range types.Jobs {
+		if job.JobNumber > max {
+			max = job.JobNumber
+		}
+	}
+	return max + 1
 }
 
 func printSpecs(cmd string, spec types.CommandCompletionSpec) string {
