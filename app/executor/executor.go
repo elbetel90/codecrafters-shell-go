@@ -102,15 +102,15 @@ func handleJobs(stdout_writer io.Writer) {
 	n := len(types.Jobs)
 	for i, job := range types.Jobs {
 		marker := jobMarker(i, n)
-		if job.Status == "Running" {
-			fmt.Fprintf(stdout_writer, "[%d]%s  %-24s%s\n", job.JobNumber, marker, "Running", job.Command+" &")
+		if job.Status == string(types.JobStatusRunning) {
+			fmt.Fprintf(stdout_writer, "[%d]%s  %-24s%s\n", job.JobNumber, marker, string(types.JobStatusRunning), job.Command+" &")
 		} else {
-			fmt.Fprintf(stdout_writer, "[%d]%s  %-24s%s\n", job.JobNumber, marker, "Done", job.Command)
+			fmt.Fprintf(stdout_writer, "[%d]%s  %-24s%s\n", job.JobNumber, marker, string(types.JobStatusDone), job.Command)
 		}
 	}
 	remaining := types.Jobs[:0]
 	for _, job := range types.Jobs {
-		if job.Status != "Done" {
+		if job.Status != string(types.JobStatusDone) {
 			remaining = append(remaining, job)
 		}
 	}
@@ -136,7 +136,7 @@ func runBackgroudJobs(command *parser.Command) (int, int, error) {
 		JobNumber: types.NextJobNumber,
 		Pid:       cmd.Process.Pid,
 		Command:   command.Cmd + " " + strings.Join(args_without_amp, " "),
-		Status:    "Running",
+		Status:    string(types.JobStatusRunning),
 	}
 	types.NextJobNumber++
 
@@ -168,7 +168,7 @@ func updateJobStatuses() {
 			continue
 		} else if wpid == job.Pid {
 			if ws.Exited() {
-				types.Jobs[i].Status = "Done"
+				types.Jobs[i].Status = string(types.JobStatusDone)
 			}
 		}
 	}
@@ -194,16 +194,16 @@ func ReapJobs(stdout_writer io.Writer) {
 	n := len(types.Jobs)
 
 	for i, job := range types.Jobs {
-		if job.Status != "Done" {
+		if job.Status != string(types.JobStatusDone) {
 			continue
 		}
 		marker := jobMarker(i, n)
-		fmt.Fprintf(stdout_writer, "[%d]%s  %-24s%s\n", job.JobNumber, marker, "Done", job.Command)
+		fmt.Fprintf(stdout_writer, "[%d]%s  %-24s%s\n", job.JobNumber, marker, string(types.JobStatusDone), job.Command)
 	}
 
 	remaining_jobs := types.Jobs[:0]
 	for _, job := range types.Jobs {
-		if job.Status != "Done" {
+		if job.Status != string(types.JobStatusDone) {
 			remaining_jobs = append(remaining_jobs, job)
 		}
 	}

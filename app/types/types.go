@@ -72,3 +72,10 @@ type Job struct {
 
 var Jobs []Job
 var NextJobNumber int = 1
+
+type JobStatus string
+
+const (
+	JobStatusRunning JobStatus = "Running"
+	JobStatusDone    JobStatus = "Done"
+)
