@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 
 	"github.com/codecrafters-io/shell-starter-go/app/parser"
 	"github.com/codecrafters-io/shell-starter-go/app/types"
@@ -99,14 +100,41 @@ func handleJobs(stdout_writer io.Writer) {
 	})
 
 	for i, job := range types.Jobs {
-		formatted_output := fmt.Sprintf("[%d]   %-24s%s", job.JobNumber, job.Status, job.Command)
+		var ws syscall.WaitStatus
+		wpid, err := syscall.Wait4(job.Pid, &ws, syscall.WNOHANG, nil)
+		if err != nil {
+			continue
+		} else if wpid == job.Pid {
+			if ws.Exited() {
+				types.Jobs[i].Status = "Done"
+			}
+		}
+		job_command := job.Command
+		current_status := types.Jobs[i].Status
+		switch current_status {
+		case "Running":
+			job_command = job_command + " &"
+		case "Done":
+			job_command = job.Command
+		default:
+			job_command = job_command + " &"
+		}
+		formatted_output := fmt.Sprintf("[%d]   %-24s%s", job.JobNumber, current_status, job_command)
 		if i == len(types.Jobs)-1 {
-			formatted_output = fmt.Sprintf("[%d]+  %-24s%s", job.JobNumber, job.Status, job.Command)
+			formatted_output = fmt.Sprintf("[%d]+  %-24s%s", job.JobNumber, current_status, job_command)
 		} else if i == len(types.Jobs)-2 {
-			formatted_output = fmt.Sprintf("[%d]-  %-24s%s", job.JobNumber, job.Status, job.Command)
+			formatted_output = fmt.Sprintf("[%d]-  %-24s%s", job.JobNumber, current_status, job_command)
 		}
 		fmt.Fprintln(stdout_writer, formatted_output)
 	}
+
+	remaining_jobs := types.Jobs[:0]
+	for _, job := range types.Jobs {
+		if job.Status != "Done" {
+			remaining_jobs = append(remaining_jobs, job)
+		}
+	}
+	types.Jobs = remaining_jobs
 }
 
 func runBackgroudJobs(command *parser.Command) (int, int, error) {
@@ -127,7 +155,7 @@ func runBackgroudJobs(command *parser.Command) (int, int, error) {
 	job := types.Job{
 		JobNumber: types.NextJobNumber,
 		Pid:       cmd.Process.Pid,
-		Command:   command.Cmd + " " + strings.Join(args_without_amp, " ") + " &",
+		Command:   command.Cmd + " " + strings.Join(args_without_amp, " "),
 		Status:    "Running",
 	}
 	types.NextJobNumber++
