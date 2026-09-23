@@ -97,6 +97,9 @@ func runBackgroudJobs(command *parser.Command) (int, int, error) {
 		return 0, 0, nil
 	}
 	cmd := exec.Command(command.Cmd, command.Args[:len(command.Args)-1]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
 	err := cmd.Start()
 	if err != nil {
 		return 0, 0, err
