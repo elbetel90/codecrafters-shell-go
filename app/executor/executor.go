@@ -95,46 +95,21 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 }
 
 func handleJobs(stdout_writer io.Writer) {
-	slices.SortFunc(types.Jobs, func(a, b types.Job) int {
-		return cmp.Compare(a.JobNumber, b.JobNumber)
-	})
+	// reap jobs
+	ReapJobs(stdout_writer)
 
+	// print jobs
 	for i, job := range types.Jobs {
-		var ws syscall.WaitStatus
-		wpid, err := syscall.Wait4(job.Pid, &ws, syscall.WNOHANG, nil)
-		if err != nil {
-			continue
-		} else if wpid == job.Pid {
-			if ws.Exited() {
-				types.Jobs[i].Status = "Done"
-			}
-		}
-		job_command := job.Command
-		current_status := types.Jobs[i].Status
-		switch current_status {
-		case "Running":
-			job_command = job_command + " &"
-		case "Done":
-			job_command = job.Command
-		default:
-			job_command = job_command + " &"
-		}
-		formatted_output := fmt.Sprintf("[%d]   %-24s%s", job.JobNumber, current_status, job_command)
+		job_command := job.Command + " &"
+		formatted_output := fmt.Sprintf("[%d]   %-24s%s", job.JobNumber, job.Status, job_command)
 		if i == len(types.Jobs)-1 {
-			formatted_output = fmt.Sprintf("[%d]+  %-24s%s", job.JobNumber, current_status, job_command)
+			formatted_output = fmt.Sprintf("[%d]+  %-24s%s", job.JobNumber, job.Status, job_command)
 		} else if i == len(types.Jobs)-2 {
-			formatted_output = fmt.Sprintf("[%d]-  %-24s%s", job.JobNumber, current_status, job_command)
+			formatted_output = fmt.Sprintf("[%d]-  %-24s%s", job.JobNumber, job.Status, job_command)
 		}
 		fmt.Fprintln(stdout_writer, formatted_output)
 	}
 
-	remaining_jobs := types.Jobs[:0]
-	for _, job := range types.Jobs {
-		if job.Status != "Done" {
-			remaining_jobs = append(remaining_jobs, job)
-		}
-	}
-	types.Jobs = remaining_jobs
 }
 
 func runBackgroudJobs(command *parser.Command) (int, int, error) {
@@ -178,6 +153,46 @@ func printSpecs(cmd string, spec types.CommandCompletionSpec) string {
 func printJobDetail(job_number, pid int) string {
 	out := fmt.Sprintf("[%d] %d", job_number, pid)
 	return out
+}
+
+func ReapJobs(stdout_writer io.Writer) {
+	slices.SortFunc(types.Jobs, func(a, b types.Job) int {
+		return cmp.Compare(a.JobNumber, b.JobNumber)
+	})
+	for i, job := range types.Jobs {
+		var ws syscall.WaitStatus
+		wpid, err := syscall.Wait4(job.Pid, &ws, syscall.WNOHANG, nil)
+		if err != nil {
+			continue
+		} else if wpid == job.Pid {
+			if ws.Exited() {
+				types.Jobs[i].Status = "Done"
+			}
+		}
+	}
+
+	for i, job := range types.Jobs {
+		if types.Jobs[i].Status != "Done" {
+			continue
+		}
+		formatted_output := fmt.Sprintf("[%d]   %-24s%s", job.JobNumber, "Done", job.Command)
+		if i == len(types.Jobs)-1 {
+			formatted_output = fmt.Sprintf("[%d]+  %-24s%s", job.JobNumber, "Done", job.Command)
+		} else if i == len(types.Jobs)-2 {
+			formatted_output = fmt.Sprintf("[%d]-  %-24s%s", job.JobNumber, "Done", job.Command)
+		}
+		fmt.Fprintln(stdout_writer, formatted_output)
+	}
+
+	remaining_jobs := types.Jobs[:0]
+	for _, job := range types.Jobs {
+		if job.Status != "Done" {
+			remaining_jobs = append(remaining_jobs, job)
+		}
+	}
+
+	types.Jobs = remaining_jobs
+
 }
 
 // execute commands

@@ -16,6 +16,8 @@ func main() {
 	all_commands := parser.GetAllCommands()
 
 	for {
+		executor.ReapJobs(os.Stdout)
+
 		fmt.Print("$ ")
 		input, err := parser.ReadLine(all_commands)
 		if err != nil {
