@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"os"
@@ -93,8 +94,17 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 }
 
 func handleJobs(stdout_writer io.Writer) {
-	for _, job := range types.Jobs {
-		formatted_output := fmt.Sprintf("[%d]+  %-24s%s", job.JobNumber, job.Status, job.Command)
+	slices.SortFunc(types.Jobs, func(a, b types.Job) int {
+		return cmp.Compare(a.JobNumber, b.JobNumber)
+	})
+
+	for i, job := range types.Jobs {
+		formatted_output := fmt.Sprintf("[%d]   %-24s%s", job.JobNumber, job.Status, job.Command)
+		if i == len(types.Jobs)-1 {
+			formatted_output = fmt.Sprintf("[%d]+  %-24s%s", job.JobNumber, job.Status, job.Command)
+		} else if i == len(types.Jobs)-2 {
+			formatted_output = fmt.Sprintf("[%d]-  %-24s%s", job.JobNumber, job.Status, job.Command)
+		}
 		fmt.Fprintln(stdout_writer, formatted_output)
 	}
 }
