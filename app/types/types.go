@@ -62,3 +62,13 @@ type CommandCompletionSpec struct {
 }
 
 var CompletionRegistry = make(map[string]CommandCompletionSpec)
+
+type Job struct {
+	JobNumber int
+	Pid       int
+	Command   string
+	Status    string
+}
+
+var Jobs []Job
+var NextJobNumber int = 1

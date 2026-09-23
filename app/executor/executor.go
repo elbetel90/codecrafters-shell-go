@@ -92,6 +92,13 @@ func handleComplete(command *parser.Command, stdout_writer, stderr_writer io.Wri
 	}
 }
 
+func handleJobs(stdout_writer io.Writer) {
+	for _, job := range types.Jobs {
+		formatted_output := fmt.Sprintf("[%d]+  %-24s%s", job.JobNumber, job.Status, job.Command)
+		fmt.Fprintln(stdout_writer, formatted_output)
+	}
+}
+
 func runBackgroudJobs(command *parser.Command) (int, int, error) {
 	if len(command.Args) < 1 {
 		return 0, 0, nil
@@ -105,7 +112,19 @@ func runBackgroudJobs(command *parser.Command) (int, int, error) {
 		return 0, 0, err
 	}
 
-	return 1, cmd.Process.Pid, nil
+	args_without_amp := command.Args[:len(command.Args)-1]
+
+	job := types.Job{
+		JobNumber: types.NextJobNumber,
+		Pid:       cmd.Process.Pid,
+		Command:   command.Cmd + " " + strings.Join(args_without_amp, " ") + " &",
+		Status:    "Running",
+	}
+	types.NextJobNumber++
+
+	types.Jobs = append(types.Jobs, job)
+
+	return job.JobNumber, cmd.Process.Pid, nil
 }
 
 func printSpecs(cmd string, spec types.CommandCompletionSpec) string {
@@ -142,7 +161,7 @@ func ExecuteCommands(input string, command *parser.Command, stdout_writer, stder
 	case string(types.BuiltinCommandComplete):
 		handleComplete(command, stdout_writer, stderr_writer)
 	case string(types.BuiltinCommandJobs):
-		os.Stdout.WriteString("\x07")
+		handleJobs(stdout_writer)
 	default:
 		if len(command.Args) > 0 && command.Args[len(command.Args)-1] == "&" {
 			job_number, pid, err := runBackgroudJobs(command)
