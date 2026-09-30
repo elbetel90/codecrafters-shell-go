@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/codecrafters-io/shell-starter-go/app/types"
@@ -36,10 +35,11 @@ func NewCommand() *Command {
 	return &Command{}
 }
 
-func (c *Command) ParseCommand(input string) *Command {
+func (c *Command) ParseCommand(input string) []*Command {
 	var sb strings.Builder
 
 	var tokens []string
+	var commands []*Command
 
 	has_token := false
 	is_redirect_target := false
@@ -52,6 +52,62 @@ func (c *Command) ParseCommand(input string) *Command {
 	redirect_mode := types.RedirectTypeNone
 
 	st := stack{rune(types.StateTransitionNormal)}
+
+	finishCommand := func() {
+		if len(tokens) == 0 {
+			return
+		}
+		commands = append(commands, &Command{
+			Cmd:          tokens[0],
+			Args:         tokens[1:],
+			OutputFile:   stdout_file,
+			ErrorFile:    stderr_file,
+			AppendStdout: is_append_out,
+			AppendStderr: is_append_err,
+		})
+
+		tokens = nil
+		stdout_file = ""
+		stderr_file = ""
+		is_append_err = false
+		is_append_out = false
+		is_redirect_target = false
+		redirect_mode = types.RedirectTypeNone
+	}
+
+	flushToken := func() {
+		if !has_token {
+			return
+		}
+
+		current_token := sb.String()
+		if is_redirect_target {
+			switch redirect_mode {
+			case types.RedirectTypeStderr:
+				stderr_file = current_token
+				is_append_err = false
+				is_append_out = false
+			case types.RedirectTypeStdout:
+				stdout_file = current_token
+				is_append_err = false
+				is_append_out = false
+			case types.RedirectTypeAppendStdout:
+				stdout_file = current_token
+				is_append_err = false
+				is_append_out = true
+			case types.RedirectTypeAppendStderr:
+				stderr_file = current_token
+				is_append_err = true
+				is_append_out = false
+			}
+			is_redirect_target = false
+			redirect_mode = types.RedirectTypeNone
+		} else {
+			tokens = append(tokens, current_token)
+		}
+		sb.Reset()
+		has_token = false
+	}
 
 	for i := 0; i < len(input); i++ {
 		ch := rune(input[i])
@@ -66,38 +122,10 @@ func (c *Command) ParseCommand(input string) *Command {
 				st.Push(rune(types.StateTranstionDoubleQoute))
 				has_token = true
 			case ' ', '\t':
-				if ch == '\t' {
-					fmt.Println("called here")
-				}
-				if has_token {
-					current_token := sb.String()
-					if is_redirect_target {
-						switch redirect_mode {
-						case types.RedirectTypeStderr:
-							stderr_file = current_token
-							is_append_err = false
-							is_append_out = false
-						case types.RedirectTypeStdout:
-							stdout_file = current_token
-							is_append_err = false
-							is_append_out = false
-						case types.RedirectTypeAppendStdout:
-							stdout_file = current_token
-							is_append_err = false
-							is_append_out = true
-						case types.RedirectTypeAppendStderr:
-							stderr_file = current_token
-							is_append_err = true
-							is_append_out = false
-						}
-						is_redirect_target = false
-						redirect_mode = types.RedirectTypeNone
-					} else {
-						tokens = append(tokens, current_token)
-					}
-					sb.Reset()
-					has_token = false
-				}
+				flushToken()
+			case '|':
+				flushToken()
+				finishCommand()
 			case '\\':
 				st.Push(rune(types.StateTransitionEscapeOutside))
 				has_token = true
@@ -182,51 +210,12 @@ func (c *Command) ParseCommand(input string) *Command {
 
 	}
 
-	if st.Top() != 0 {
-		// return "", nil, fmt.Errorf("syntax error: unclosed single quote")
-	}
+	flushToken()
+	finishCommand()
 
-	if has_token {
-		current_token := sb.String()
-		if is_redirect_target {
-			switch redirect_mode {
-			case types.RedirectTypeStderr:
-				stderr_file = current_token
-				is_append_err = false
-				is_append_out = false
-			case types.RedirectTypeStdout:
-				stdout_file = current_token
-				is_append_err = false
-				is_append_out = false
-			case types.RedirectTypeAppendStdout:
-				stdout_file = current_token
-				is_append_err = false
-				is_append_out = true
-			case types.RedirectTypeAppendStderr:
-				stderr_file = current_token
-				is_append_err = true
-				is_append_out = false
-			}
-			is_redirect_target = false
-		} else {
-			tokens = append(tokens, current_token)
-		}
-	}
-
-	if is_redirect_target {
-		// we will print here later
-	}
-
-	if len(tokens) == 0 {
+	if len(commands) == 0 {
 		return nil
 	}
 
-	return &Command{
-		Cmd:          tokens[0],
-		Args:         tokens[1:],
-		OutputFile:   stdout_file,
-		ErrorFile:    stderr_file,
-		AppendStdout: is_append_out,
-		AppendStderr: is_append_err,
-	}
+	return commands
 }

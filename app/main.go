@@ -32,18 +32,22 @@ func main() {
 			continue
 
 		}
-		command := c.ParseCommand(input)
+		commands := c.ParseCommand(input)
+		if len(commands) > 1 {
+			command_executor := executor.NewCommandExecutor(input, commands[0], os.Stdout, os.Stderr)
+			command_executor.ExecutePipeline(commands, os.Stdout, os.Stderr)
+			continue
+		}
+		command := commands[0]
 		stdout_writer, stderr_writer, cleanup, err := executor.GetOutputWriters(command)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-
 		command_executor := executor.NewCommandExecutor(input, command, stdout_writer, stderr_writer)
-
 		command_executor.ExecuteCommands(input, command, stdout_writer, stderr_writer)
-
 		cleanup()
+
 	}
 
 }

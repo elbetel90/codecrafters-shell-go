@@ -72,6 +72,55 @@ func (ce *CommandExecutor) ExecuteCommands(input string, command *parser.Command
 	}
 }
 
+func (ce *CommandExecutor) ExecutePipeline(commands []*parser.Command, stdout_writer, stderr_writer io.Writer) {
+	n := len(commands)
+	if n == 0 {
+		return
+	}
+
+	// step 1: build all exec.Cmd first
+	cmds := make([]*exec.Cmd, n)
+	for i, command := range commands {
+		if _, err := exec.LookPath(command.Cmd); err != nil {
+			fmt.Println(command.Cmd + ": command not found")
+			return
+		}
+		cmds[i] = exec.Command(command.Cmd, command.Args...)
+		cmds[i].Stderr = stderr_writer
+	}
+	// step 2: wire the ends of the pipeline
+	cmds[0].Stdin = os.Stdin
+	cmds[n-1].Stdout = stdout_writer
+	// step 3: create pipes between neighbors
+	var pipeFiles []*os.File
+	for i := 0; i < n-1; i++ {
+		r, w, err := os.Pipe()
+		if err != nil {
+			fmt.Fprintln(stderr_writer, err)
+			return
+		}
+		cmds[i].Stdout = w
+		cmds[i+1].Stdin = r
+		pipeFiles = append(pipeFiles, r, w)
+	}
+	// step 4: start all processes
+	var started []*exec.Cmd
+	for _, cmd := range cmds {
+		if err := cmd.Start(); err != nil {
+			fmt.Fprintln(stderr_writer, err)
+			break
+		}
+		started = append(started, cmd)
+	}
+	// step 5: close parent's pipe ends so children see EOF / get SIGPIPE
+	for _, f := range pipeFiles {
+		f.Close()
+	}
+	// step 6: wait for all
+	for _, cmd := range started {
+		cmd.Wait()
+	}
+}
 func (ce *CommandExecutor) handlePwd() {
 	dir, err := os.Getwd()
 	if err != nil {
