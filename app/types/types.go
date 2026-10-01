@@ -64,6 +64,12 @@ const (
 	CompleteCommandArgsR CompleteCommandArgs = "-r"
 )
 
+type HistoryCommandArgs string
+
+const (
+	HistoryCommandArgsR HistoryCommandArgs = "-r"
+)
+
 type CommandCompletionSpec struct {
 	CommandName   string // -C flag
 	TargetCommand string // target command

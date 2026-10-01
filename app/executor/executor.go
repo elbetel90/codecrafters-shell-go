@@ -289,9 +289,26 @@ func (ce *CommandExecutor) handleJobs(stdout_writer io.Writer) {
 
 func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parser.Command) {
 	histories := types.History
-	if len(command.Args) == 1 {
-		limit_str := command.Args[0]
-		limit, err := strconv.Atoi(limit_str)
+	if len(command.Args) >= 1 {
+		history_cmd_arg := command.Args[0]
+		if history_cmd_arg == string(types.HistoryCommandArgsR) {
+			if len(command.Args) < 2 {
+				return
+			}
+			data, err := os.ReadFile(command.Args[1])
+			if err != nil {
+				return
+			}
+			for _, line := range strings.Split(string(data), "\n") {
+				line = strings.Trim(line, "\r")
+				if line == "" {
+					continue
+				}
+				types.History = append(types.History, line)
+			}
+			return
+		}
+		limit, err := strconv.Atoi(history_cmd_arg)
 		if err != nil {
 			return
 		}
