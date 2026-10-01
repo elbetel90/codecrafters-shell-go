@@ -15,13 +15,13 @@ var _ = fmt.Print
 func main() {
 	c := parser.NewCommand()
 
-	all_commands := c.GetAllCommands()
+	// all_commands := c.GetAllCommands()
 
 	for {
 		executor.ReapJobs(os.Stdout)
 
 		fmt.Print("$ ")
-		input, err := c.ReadLine(all_commands)
+		input, err := c.ReadLine([]string{})
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return

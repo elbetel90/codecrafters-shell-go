@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/codecrafters-io/shell-starter-go/app/parser"
@@ -61,14 +62,38 @@ func (ce *CommandExecutor) ExecuteCommands(input string, command *parser.Command
 			fmt.Fprintln(stdout_writer, ce.printJobDetail(job_number, pid))
 		} else {
 			if _, err := exec.LookPath(command.Cmd); err == nil {
-				execCmd := exec.Command(command.Cmd, command.Args...)
-				execCmd.Stdout = stdout_writer
-				execCmd.Stderr = stderr_writer
-				execCmd.Run()
+				exec_cmd := exec.Command(command.Cmd, command.Args...)
+				exec_cmd.Stdout = stdout_writer
+				exec_cmd.Stderr = stderr_writer
+				exec_cmd.Run()
 			} else {
 				fmt.Println(input + ": command not found")
 			}
 		}
+	}
+}
+
+func (ce *CommandExecutor) runBuiltInPipeline(command *parser.Command, stdout_writer, stderr_writer io.Writer) {
+	switch command.Cmd {
+	case string(types.BuiltinCommandEcho):
+		fmt.Fprintln(stdout_writer, strings.Join(command.Args, " "))
+	case string(types.BuiltinCommandType):
+		for _, arg := range command.Args {
+			if slices.Contains(types.Built_ins, arg) {
+				fmt.Fprintln(stdout_writer, arg+" is a shell builtin")
+			} else if path, err := exec.LookPath(arg); err == nil {
+				fmt.Fprintln(stdout_writer, arg+" is "+path)
+			} else {
+				fmt.Fprintln(stdout_writer, arg+": not found")
+			}
+		}
+	case string(types.BuiltinCommandPwd):
+		dir, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintln(stderr_writer, "pwd error", err)
+			return
+		}
+		fmt.Fprintln(stdout_writer, dir)
 	}
 }
 
@@ -78,48 +103,83 @@ func (ce *CommandExecutor) ExecutePipeline(commands []*parser.Command, stdout_wr
 		return
 	}
 
-	// step 1: build all exec.Cmd first
-	cmds := make([]*exec.Cmd, n)
-	for i, command := range commands {
-		if _, err := exec.LookPath(command.Cmd); err != nil {
-			fmt.Println(command.Cmd + ": command not found")
-			return
-		}
-		cmds[i] = exec.Command(command.Cmd, command.Args...)
-		cmds[i].Stderr = stderr_writer
+	type pipePair struct {
+		r, w *os.File
 	}
-	// step 2: wire the ends of the pipeline
-	cmds[0].Stdin = os.Stdin
-	cmds[n-1].Stdout = stdout_writer
-	// step 3: create pipes between neighbors
-	var pipeFiles []*os.File
-	for i := 0; i < n-1; i++ {
+
+	pipes := make([]pipePair, n-1)
+	for i := range pipes {
 		r, w, err := os.Pipe()
 		if err != nil {
 			fmt.Fprintln(stderr_writer, err)
 			return
 		}
-		cmds[i].Stdout = w
-		cmds[i+1].Stdin = r
-		pipeFiles = append(pipeFiles, r, w)
+		pipes[i] = pipePair{r, w}
 	}
-	// step 4: start all processes
-	var started []*exec.Cmd
-	for _, cmd := range cmds {
-		if err := cmd.Start(); err != nil {
-			fmt.Fprintln(stderr_writer, err)
-			break
+
+	stage_stdout := make([]io.Writer, n)
+	stage_stdin := make([]*os.File, n)
+	stage_stdin[0] = os.Stdin
+	stage_stdout[n-1] = stdout_writer
+	for i := 0; i < n-1; i++ {
+		stage_stdout[i] = pipes[i].w
+		stage_stdin[i+1] = pipes[i].r
+	}
+
+	goroutine_owns_write := make([]bool, n-1)
+
+	var wg sync.WaitGroup
+	var external_cmds []*exec.Cmd
+	for i, command := range commands {
+		if types.IsBuiltin(command.Cmd) {
+			wg.Add(1)
+			w := stage_stdout[i]
+			cmd := command
+			if i < n-1 {
+				goroutine_owns_write[i] = true
+			}
+			go func() {
+				defer wg.Done()
+				if f, ok := w.(*os.File); ok && f != os.Stdout {
+					defer f.Close()
+				}
+				ce.runBuiltInPipeline(cmd, w, stderr_writer)
+			}()
+		} else {
+			if _, err := exec.LookPath(command.Cmd); err != nil {
+				fmt.Fprintln(stderr_writer, command.Cmd+": command not found")
+				for _, p := range pipes {
+					p.r.Close()
+					p.w.Close()
+				}
+				wg.Wait()
+				return
+			}
+			exec_cmd := exec.Command(command.Cmd, command.Args...)
+			exec_cmd.Stdin = stage_stdin[i]
+			exec_cmd.Stdout = stage_stdout[i]
+			exec_cmd.Stderr = stderr_writer
+			external_cmds = append(external_cmds, exec_cmd)
+			if err := exec_cmd.Start(); err != nil {
+				fmt.Fprintln(stderr_writer, err)
+				continue
+			}
+			wg.Add(1)
+			go func(cmd *exec.Cmd) {
+				defer wg.Done()
+				cmd.Wait()
+			}(exec_cmd)
 		}
-		started = append(started, cmd)
 	}
-	// step 5: close parent's pipe ends so children see EOF / get SIGPIPE
-	for _, f := range pipeFiles {
-		f.Close()
+
+	for i, p := range pipes {
+		p.r.Close()
+		if !goroutine_owns_write[i] {
+			p.w.Close()
+		}
 	}
-	// step 6: wait for all
-	for _, cmd := range started {
-		cmd.Wait()
-	}
+
+	wg.Wait()
 }
 func (ce *CommandExecutor) handlePwd() {
 	dir, err := os.Getwd()

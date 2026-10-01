@@ -1,5 +1,7 @@
 package types
 
+import "slices"
+
 type BuiltinCommand string
 
 const (
@@ -20,6 +22,10 @@ var Built_ins = []string{
 	string(BuiltinCommandCd),
 	string(BuiltinCommandComplete),
 	string(BuiltinCommandJobs),
+}
+
+func IsBuiltin(name string) bool {
+	return slices.Contains(Built_ins, name)
 }
 
 type StateTransition int
