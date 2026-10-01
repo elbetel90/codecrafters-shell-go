@@ -52,6 +52,8 @@ func (ce *CommandExecutor) ExecuteCommands(input string, command *parser.Command
 		ce.handleComplete(command, stdout_writer, stderr_writer)
 	case string(types.BuiltinCommandJobs):
 		ce.handleJobs(stdout_writer)
+	case string(types.BuiltinCommandsHistory):
+		ce.handleHistory(stdout_writer)
 	default:
 		if len(command.Args) > 0 && command.Args[len(command.Args)-1] == "&" {
 			job_number, pid, err := ce.runBackgroudJobs(command)
@@ -181,6 +183,7 @@ func (ce *CommandExecutor) ExecutePipeline(commands []*parser.Command, stdout_wr
 
 	wg.Wait()
 }
+
 func (ce *CommandExecutor) handlePwd() {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -281,6 +284,12 @@ func (ce *CommandExecutor) handleJobs(stdout_writer io.Writer) {
 		}
 	}
 	types.Jobs = remaining
+}
+
+func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer) {
+	for i, history := range types.History {
+		fmt.Fprintf(stdout_writer, "%5d  %s\n", i+1, history)
+	}
 }
 
 func (ce *CommandExecutor) runBackgroudJobs(command *parser.Command) (int, int, error) {

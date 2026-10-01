@@ -7,6 +7,7 @@ import (
 
 	"github.com/codecrafters-io/shell-starter-go/app/executor"
 	"github.com/codecrafters-io/shell-starter-go/app/parser"
+	"github.com/codecrafters-io/shell-starter-go/app/types"
 )
 
 // Ensures gofmt doesn't remove the "fmt" import in stage 1 (feel free to remove this!)
@@ -32,10 +33,12 @@ func main() {
 			continue
 
 		}
+		types.History = append(types.History, input)
 		commands := c.ParseCommand(input)
 		if len(commands) > 1 {
 			command_executor := executor.NewCommandExecutor(input, commands[0], os.Stdout, os.Stderr)
 			command_executor.ExecutePipeline(commands, os.Stdout, os.Stderr)
+
 			continue
 		}
 		command := commands[0]

@@ -86,3 +86,5 @@ const (
 	JobStatusRunning JobStatus = "Running"
 	JobStatusDone    JobStatus = "Done"
 )
+
+var History []string
