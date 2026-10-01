@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -53,7 +54,7 @@ func (ce *CommandExecutor) ExecuteCommands(input string, command *parser.Command
 	case string(types.BuiltinCommandJobs):
 		ce.handleJobs(stdout_writer)
 	case string(types.BuiltinCommandsHistory):
-		ce.handleHistory(stdout_writer)
+		ce.handleHistory(stdout_writer, command)
 	default:
 		if len(command.Args) > 0 && command.Args[len(command.Args)-1] == "&" {
 			job_number, pid, err := ce.runBackgroudJobs(command)
@@ -286,9 +287,23 @@ func (ce *CommandExecutor) handleJobs(stdout_writer io.Writer) {
 	types.Jobs = remaining
 }
 
-func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer) {
-	for i, history := range types.History {
-		fmt.Fprintf(stdout_writer, "%5d  %s\n", i+1, history)
+func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parser.Command) {
+	histories := types.History
+	if len(command.Args) == 1 {
+		limit_str := command.Args[0]
+		limit, err := strconv.Atoi(limit_str)
+		if err != nil {
+			return
+		}
+		start := len(types.History) - limit
+		if start < 0 {
+			start = 0
+		}
+		histories = types.History[start:]
+	}
+	offset := len(types.History) - len(histories)
+	for i, history := range histories {
+		fmt.Fprintf(stdout_writer, "%5d  %s\n", offset+i+1, history)
 	}
 }
 
