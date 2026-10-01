@@ -12,6 +12,7 @@ const (
 	BuiltinCommandCd       BuiltinCommand = "cd"
 	BuiltinCommandComplete BuiltinCommand = "complete"
 	BuiltinCommandJobs     BuiltinCommand = "jobs"
+	BuiltinCommandsHistory BuiltinCommand = "history"
 )
 
 var Built_ins = []string{
@@ -22,6 +23,7 @@ var Built_ins = []string{
 	string(BuiltinCommandCd),
 	string(BuiltinCommandComplete),
 	string(BuiltinCommandJobs),
+	string(BuiltinCommandsHistory),
 }
 
 func IsBuiltin(name string) bool {
