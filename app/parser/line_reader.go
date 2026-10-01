@@ -288,6 +288,18 @@ func (c *Command) handleProgrammableCompletion(script_path string, line_byte *[]
 	return nil
 }
 
+func (c *Command) handleUpArrowNavigation(line_byte *[]byte, history_index *int) {
+	if *history_index == 0 || len(types.History) == 0 {
+		os.Stdout.WriteString("\x07")
+		return
+	}
+	*history_index--
+	recalled := types.History[*history_index]
+	os.Stdout.WriteString("\r$ " + recalled + "\x1b[K")
+	*line_byte = []byte(recalled)
+
+}
+
 func (c *Command) ReadLine(all_commands []string) (string, error) {
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
@@ -298,6 +310,8 @@ func (c *Command) ReadLine(all_commands []string) (string, error) {
 	var line_byte []byte
 	buf := make([]byte, 1)
 	last_was_tab := false
+
+	history_index := len(types.History)
 
 	for {
 		_, err := os.Stdin.Read(buf)
@@ -357,8 +371,10 @@ func (c *Command) ReadLine(all_commands []string) (string, error) {
 			n, _ := os.Stdin.Read(seq)
 			if n == 2 && seq[0] == '[' {
 				switch seq[1] {
-				case 'A', 'B', 'C', 'D':
-					// ignore for now
+				case 'A':
+					c.handleUpArrowNavigation(&line_byte, &history_index)
+				case 'B':
+					// down arrow navigation will be handled here
 				}
 			}
 		case '\x03':
