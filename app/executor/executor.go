@@ -295,10 +295,7 @@ func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parse
 		if err != nil {
 			return
 		}
-		start := len(types.History) - limit
-		if start < 0 {
-			start = 0
-		}
+		start := max(len(types.History)-limit, 0)
 		histories = types.History[start:]
 	}
 	offset := len(types.History) - len(histories)
