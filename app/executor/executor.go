@@ -307,6 +307,16 @@ func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parse
 				types.History = append(types.History, line)
 			}
 			return
+		} else if history_cmd_arg == string(types.HistoryCommandArgsW) {
+			if len(command.Args) < 2 {
+				return
+			}
+			data := strings.Join(types.History, "\n") + "\n"
+			err := os.WriteFile(command.Args[1], []byte(data), 0644)
+			if err != nil {
+				return
+			}
+			return
 		}
 		limit, err := strconv.Atoi(history_cmd_arg)
 		if err != nil {
