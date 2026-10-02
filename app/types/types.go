@@ -69,6 +69,7 @@ type HistoryCommandArgs string
 const (
 	HistoryCommandArgsR HistoryCommandArgs = "-r"
 	HistoryCommandArgsW HistoryCommandArgs = "-w"
+	HistoryCommandArgsA HistoryCommandArgs = "-a"
 )
 
 type CommandCompletionSpec struct {
