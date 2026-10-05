@@ -288,48 +288,6 @@ func (ce *CommandExecutor) handleJobs(stdout_writer io.Writer) {
 	types.Jobs = remaining
 }
 
-func LoadHistory(path string) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.Trim(line, "\r")
-		if line == "" {
-			continue
-		}
-		types.History = append(types.History, line)
-	}
-}
-
-func WriteHistory(path, data string) {
-	err := os.WriteFile(path, []byte(data), 0644)
-	if err != nil {
-		return
-	}
-}
-
-func AppendHistory(path string) {
-	if path == "" {
-		return
-	}
-	new_lines := types.History[types.HistoryAppendIndex:]
-	if len(new_lines) == 0 {
-		return
-	}
-	data := strings.Join(new_lines, "\n") + "\n"
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		return
-	}
-	_, err = f.WriteString(data)
-	f.Close()
-	if err != nil {
-		return
-	}
-	types.HistoryAppendIndex = len(types.History)
-}
-
 func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parser.Command) {
 	histories := types.History
 	if len(command.Args) >= 1 {
@@ -471,5 +429,46 @@ func ReapJobs(stdout_writer io.Writer) {
 	}
 
 	types.Jobs = remaining_jobs
+}
 
+func LoadHistory(path string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.Trim(line, "\r")
+		if line == "" {
+			continue
+		}
+		types.History = append(types.History, line)
+	}
+}
+
+func WriteHistory(path, data string) {
+	err := os.WriteFile(path, []byte(data), 0644)
+	if err != nil {
+		return
+	}
+}
+
+func AppendHistory(path string) {
+	if path == "" {
+		return
+	}
+	new_lines := types.History[types.HistoryAppendIndex:]
+	if len(new_lines) == 0 {
+		return
+	}
+	data := strings.Join(new_lines, "\n") + "\n"
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		return
+	}
+	_, err = f.WriteString(data)
+	f.Close()
+	if err != nil {
+		return
+	}
+	types.HistoryAppendIndex = len(types.History)
 }
