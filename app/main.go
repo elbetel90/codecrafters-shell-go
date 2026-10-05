@@ -22,13 +22,13 @@ func main() {
 		types.HistoryAppendIndex = len(types.History)
 	}
 
-	// all_commands := c.GetAllCommands()
+	all_commands := c.GetAllCommands()
 
 	for {
 		executor.ReapJobs(os.Stdout)
 
 		fmt.Print("$ ")
-		input, err := c.ReadLine([]string{})
+		input, err := c.ReadLine(all_commands)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
