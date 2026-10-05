@@ -96,3 +96,4 @@ const (
 )
 
 var History []string
+var HistoryAppendIndex int
