@@ -41,6 +41,9 @@ func main() {
 		}
 		types.History = append(types.History, input)
 		commands := c.ParseCommand(input)
+		for _, command := range commands {
+			executor.ExpandCommand(command)
+		}
 		if len(commands) > 1 {
 			command_executor := executor.NewCommandExecutor(input, commands[0], os.Stdout, os.Stderr)
 			command_executor.ExecutePipeline(commands, os.Stdout, os.Stderr)

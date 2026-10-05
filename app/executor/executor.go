@@ -504,3 +504,27 @@ func AppendHistory(path string) {
 	}
 	types.HistoryAppendIndex = len(types.History)
 }
+
+func expandWord(word string) string {
+	if len(word) < 2 || word[0] != '$' {
+		return word
+	}
+	name := word[1:]
+	if !utils.IsValidIdentifier(name) {
+		return word
+	}
+	if value, ok := types.ShellVariables[name]; ok {
+		return value
+	}
+	return ""
+}
+
+func ExpandCommand(command *parser.Command) {
+	if command == nil {
+		return
+	}
+	command.Cmd = expandWord(command.Cmd)
+	for i, arg := range command.Args {
+		command.Args[i] = expandWord(arg)
+	}
+}
