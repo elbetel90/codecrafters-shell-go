@@ -56,6 +56,8 @@ func (ce *CommandExecutor) ExecuteCommands(input string, command *parser.Command
 		ce.handleJobs(stdout_writer)
 	case string(types.BuiltinCommandsHistory):
 		ce.handleHistory(stdout_writer, command)
+	case string(types.BuiltinCommandDeclare):
+		ce.handleDeclare(stderr_writer, command)
 	default:
 		if len(command.Args) > 0 && command.Args[len(command.Args)-1] == "&" {
 			job_number, pid, err := ce.runBackgroudJobs(command)
@@ -323,6 +325,16 @@ func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parse
 	for i, history := range histories {
 		fmt.Fprintf(stdout_writer, "%5d  %s\n", offset+i+1, history)
 	}
+}
+
+func (ce *CommandExecutor) handleDeclare(stderr_writer io.Writer, command *parser.Command) {
+	if len(command.Args) < 2 {
+		return
+	}
+	if command.Args[0] != string(types.DeclareCommandArgsP) {
+		return
+	}
+	fmt.Fprintf(stderr_writer, "%s: %s: not found\n", command.Cmd, command.Args[1])
 }
 
 func (ce *CommandExecutor) runBackgroudJobs(command *parser.Command) (int, int, error) {

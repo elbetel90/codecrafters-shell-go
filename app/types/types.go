@@ -74,6 +74,12 @@ const (
 	HistoryCommandArgsA HistoryCommandArgs = "-a"
 )
 
+type DeclareCommandArgs string
+
+const (
+	DeclareCommandArgsP DeclareCommandArgs = "-p"
+)
+
 type CommandCompletionSpec struct {
 	CommandName   string // -C flag
 	TargetCommand string // target command
