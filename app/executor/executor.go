@@ -512,6 +512,24 @@ func expandWord(word string) string {
 			sb.WriteByte(word[i])
 			continue
 		}
+		if i+1 < len(word) && word[i+1] == '{' {
+			end := strings.IndexByte(word[i+2:], '}')
+			if end == -1 {
+				sb.WriteByte('$')
+				continue
+			}
+			end += i + 2
+			name := word[i+2 : end]
+			if utils.IsValidIdentifier(name) {
+				if value, ok := types.ShellVariables[name]; ok {
+					sb.WriteString(value)
+				}
+				i = end
+				continue
+			}
+			sb.WriteByte('$')
+			continue
+		}
 		j := i + 1
 		for j < len(word) && utils.IsValidIdentifier(word[i+1:j+1]) {
 			j++
