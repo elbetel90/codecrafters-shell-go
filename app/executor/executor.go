@@ -40,6 +40,10 @@ func (ce *CommandExecutor) ExecuteCommands(input string, command *parser.Command
 	}
 	switch command.Cmd {
 	case string(types.BuiltinCommandExit):
+		if path := os.Getenv("HISTFILE"); path != "" {
+			data := strings.Join(types.History, "\n") + "\n"
+			WriteFile(path, data)
+		}
 		os.Exit(0)
 	case string(types.BuiltinCommandEcho):
 		fmt.Fprintln(stdout_writer, strings.Join(command.Args, " "))
@@ -301,6 +305,13 @@ func LoadHistory(path string) {
 	}
 }
 
+func WriteFile(path, data string) {
+	err := os.WriteFile(path, []byte(data), 0644)
+	if err != nil {
+		return
+	}
+}
+
 func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parser.Command) {
 	histories := types.History
 	if len(command.Args) >= 1 {
@@ -316,10 +327,7 @@ func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parse
 				return
 			}
 			data := strings.Join(types.History, "\n") + "\n"
-			err := os.WriteFile(command.Args[1], []byte(data), 0644)
-			if err != nil {
-				return
-			}
+			WriteFile(command.Args[1], data)
 			return
 		} else if history_cmd_arg == string(types.HistoryCommandArgsA) {
 			if len(command.Args) < 2 {
