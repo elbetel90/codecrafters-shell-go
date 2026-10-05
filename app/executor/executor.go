@@ -40,10 +40,7 @@ func (ce *CommandExecutor) ExecuteCommands(input string, command *parser.Command
 	}
 	switch command.Cmd {
 	case string(types.BuiltinCommandExit):
-		if path := os.Getenv("HISTFILE"); path != "" {
-			data := strings.Join(types.History, "\n") + "\n"
-			WriteFile(path, data)
-		}
+		AppendHistory(os.Getenv("HISTFILE"))
 		os.Exit(0)
 	case string(types.BuiltinCommandEcho):
 		fmt.Fprintln(stdout_writer, strings.Join(command.Args, " "))
@@ -305,11 +302,32 @@ func LoadHistory(path string) {
 	}
 }
 
-func WriteFile(path, data string) {
+func WriteHistory(path, data string) {
 	err := os.WriteFile(path, []byte(data), 0644)
 	if err != nil {
 		return
 	}
+}
+
+func AppendHistory(path string) {
+	if path == "" {
+		return
+	}
+	new_lines := types.History[types.HistoryAppendIndex:]
+	if len(new_lines) == 0 {
+		return
+	}
+	data := strings.Join(new_lines, "\n") + "\n"
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		return
+	}
+	_, err = f.WriteString(data)
+	f.Close()
+	if err != nil {
+		return
+	}
+	types.HistoryAppendIndex = len(types.History)
 }
 
 func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parser.Command) {
@@ -327,27 +345,14 @@ func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parse
 				return
 			}
 			data := strings.Join(types.History, "\n") + "\n"
-			WriteFile(command.Args[1], data)
+			WriteHistory(command.Args[1], data)
 			return
 		} else if history_cmd_arg == string(types.HistoryCommandArgsA) {
 			if len(command.Args) < 2 {
 				return
 			}
-			new_lines := types.History[types.HistoryAppendIndex:]
-			if len(new_lines) > 0 {
-				data := strings.Join(new_lines, "\n") + "\n"
-				f, err := os.OpenFile(command.Args[1], os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-				if err != nil {
-					return
-				}
-				_, err = f.WriteString(data)
-				f.Close()
-				if err != nil {
-					return
-				}
-				types.HistoryAppendIndex = len(types.History)
-				return
-			}
+			AppendHistory(command.Args[1])
+			return
 		}
 		limit, err := strconv.Atoi(history_cmd_arg)
 		if err != nil {
