@@ -552,7 +552,12 @@ func ExpandCommand(command *parser.Command) {
 		return
 	}
 	command.Cmd = expandWord(command.Cmd)
-	for i, arg := range command.Args {
-		command.Args[i] = expandWord(arg)
+	args := command.Args[:0]
+	for _, arg := range command.Args {
+		expanded := expandWord(arg)
+		if expanded != "" {
+			args = append(args, expanded)
+		}
 	}
+	command.Args = args
 }
