@@ -15,6 +15,7 @@ import (
 
 	"github.com/codecrafters-io/shell-starter-go/app/parser"
 	"github.com/codecrafters-io/shell-starter-go/app/types"
+	"github.com/codecrafters-io/shell-starter-go/app/utils"
 )
 
 type CommandExecutor struct {
@@ -347,6 +348,10 @@ func (ce *CommandExecutor) handleDeclare(stdout_writer, stderr_writer io.Writer,
 	}
 	parts := strings.SplitN(command.Args[0], "=", 2)
 	if len(parts) == 1 {
+		return
+	}
+	if !utils.IsValidIdentifier(parts[0]) {
+		fmt.Fprintf(stderr_writer, "%s: `%s': not a valid identifier\n", command.Cmd, command.Args[0])
 		return
 	}
 	types.ShellVariables[parts[0]] = parts[1]
