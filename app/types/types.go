@@ -105,3 +105,5 @@ const (
 
 var History []string
 var HistoryAppendIndex int
+
+var ShellVariables = map[string]string{}

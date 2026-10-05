@@ -57,7 +57,7 @@ func (ce *CommandExecutor) ExecuteCommands(input string, command *parser.Command
 	case string(types.BuiltinCommandsHistory):
 		ce.handleHistory(stdout_writer, command)
 	case string(types.BuiltinCommandDeclare):
-		ce.handleDeclare(stderr_writer, command)
+		ce.handleDeclare(stdout_writer, stderr_writer, command)
 	default:
 		if len(command.Args) > 0 && command.Args[len(command.Args)-1] == "&" {
 			job_number, pid, err := ce.runBackgroudJobs(command)
@@ -327,14 +327,29 @@ func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parse
 	}
 }
 
-func (ce *CommandExecutor) handleDeclare(stderr_writer io.Writer, command *parser.Command) {
-	if len(command.Args) < 2 {
+func (ce *CommandExecutor) handleDeclare(stdout_writer, stderr_writer io.Writer, command *parser.Command) {
+	if len(command.Args) == 0 {
 		return
 	}
-	if command.Args[0] != string(types.DeclareCommandArgsP) {
+	if command.Args[0] == string(types.DeclareCommandArgsP) {
+		if len(command.Args) < 2 {
+			return
+		}
+		name := command.Args[1]
+		value, ok := types.ShellVariables[name]
+		if !ok {
+			fmt.Fprintf(stderr_writer, "%s: %s: not found\n", command.Cmd, name)
+			return
+		}
+		formatted_output := fmt.Sprintf("%s -- %s=%q", command.Cmd, name, value)
+		fmt.Fprintf(stdout_writer, "%s\n", formatted_output)
 		return
 	}
-	fmt.Fprintf(stderr_writer, "%s: %s: not found\n", command.Cmd, command.Args[1])
+	parts := strings.SplitN(command.Args[0], "=", 2)
+	if len(parts) == 1 {
+		return
+	}
+	types.ShellVariables[parts[0]] = parts[1]
 }
 
 func (ce *CommandExecutor) runBackgroudJobs(command *parser.Command) (int, int, error) {
