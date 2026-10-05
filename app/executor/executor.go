@@ -287,6 +287,20 @@ func (ce *CommandExecutor) handleJobs(stdout_writer io.Writer) {
 	types.Jobs = remaining
 }
 
+func LoadHistory(path string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.Trim(line, "\r")
+		if line == "" {
+			continue
+		}
+		types.History = append(types.History, line)
+	}
+}
+
 func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parser.Command) {
 	histories := types.History
 	if len(command.Args) >= 1 {
@@ -295,17 +309,7 @@ func (ce *CommandExecutor) handleHistory(stdout_writer io.Writer, command *parse
 			if len(command.Args) < 2 {
 				return
 			}
-			data, err := os.ReadFile(command.Args[1])
-			if err != nil {
-				return
-			}
-			for _, line := range strings.Split(string(data), "\n") {
-				line = strings.Trim(line, "\r")
-				if line == "" {
-					continue
-				}
-				types.History = append(types.History, line)
-			}
+			LoadHistory(command.Args[1])
 			return
 		} else if history_cmd_arg == string(types.HistoryCommandArgsW) {
 			if len(command.Args) < 2 {

@@ -16,6 +16,12 @@ var _ = fmt.Print
 func main() {
 	c := parser.NewCommand()
 
+	histfile_var := os.Getenv("HISTFILE")
+	if histfile_var != "" {
+		executor.LoadHistory(histfile_var)
+		types.HistoryAppendIndex = len(types.History)
+	}
+
 	all_commands := c.GetAllCommands()
 
 	for {
