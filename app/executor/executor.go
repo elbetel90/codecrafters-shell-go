@@ -506,17 +506,27 @@ func AppendHistory(path string) {
 }
 
 func expandWord(word string) string {
-	if len(word) < 2 || word[0] != '$' {
-		return word
+	var sb strings.Builder
+	for i := 0; i < len(word); i++ {
+		if word[i] != '$' {
+			sb.WriteByte(word[i])
+			continue
+		}
+		j := i + 1
+		for j < len(word) && utils.IsValidIdentifier(word[i+1:j+1]) {
+			j++
+		}
+		name := word[i+1 : j]
+		if name == "" {
+			sb.WriteByte('$')
+			continue
+		}
+		if value, ok := types.ShellVariables[name]; ok {
+			sb.WriteString(value)
+		}
+		i = j - 1
 	}
-	name := word[1:]
-	if !utils.IsValidIdentifier(name) {
-		return word
-	}
-	if value, ok := types.ShellVariables[name]; ok {
-		return value
-	}
-	return ""
+	return sb.String()
 }
 
 func ExpandCommand(command *parser.Command) {
